@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Memory"
+  short_description: "Reads/writes docs/MEMORY.md + docs/DECISIONS.md to preserve durable context across sessions."
+  default_prompt: |
+    Use the Project Memory skill. Read the memory files first, then proceed with the task. Update memory files with durable findings.

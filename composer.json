@@ -1,0 +1,27 @@
+{
+    "name": "ronanchilvers/yze-roller-api",
+    "description": "API Backend for YZE-Roller",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ronan Chilvers",
+            "email": "ronan@thelittledot.com"
+        }
+    ],
+    "require": {
+        "flightphp/core": "^3.18",
+        "flightphp/active-record": "^0.7.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "YZE-Roller\\Api\\": "src/"
+        }
+    },
+    "scripts": {
+      "serve": "cd web && /opt/homebrew/bin/php -S 127.0.0.1:8080"
+    }
+}
