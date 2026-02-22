@@ -13,7 +13,7 @@ $container->set(
         return new PDO(
             sprintf(
                 "%s:host=%s;dbname=%s;charset=utf8mb4",
-                $settings["database"]["adaptor"],
+                $settings["database"]["adapter"],
                 $settings["database"]["host"],
                 $settings["database"]["name"]
             ),

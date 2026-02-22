@@ -7,7 +7,7 @@ $settings = [
         "url" => "http://localhost:8080",
     ],
     "database" => [
-        "adaptor" => null,
+        "adapter" => null,
         "host" => null,
         "username" => null,
         "password" => null,
