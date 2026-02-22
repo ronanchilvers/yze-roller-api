@@ -1,167 +1,173 @@
-# Server-Side Implementation Outline
+# Server-Side Implementation Outline (Contract-Aligned)
 
-## Stack: FlightPHP + MariaDB + Nginx + PHP-FPM
+Primary contract: `/Users/ronan/Personal/experiments/yze-roller/docs/plans/multiplayer-api-contract-and-build-spec.md`
 
-## Goals
+Use this document as an execution runbook for implementing the server in consistent, testable steps.
 
--   Multiplayer session support (GM + multiple players)
--   Self-registering players via rotatable join link
--   Per-player bearer tokens
--   Polling via since_id (no WebSockets/SSE)
--   Individual player revocation
+## 1. Stack and Constraints
 
-------------------------------------------------------------------------
+- Runtime: FlightPHP + MariaDB + Nginx + PHP-FPM
+- Transport: HTTP polling only (no WebSockets/SSE)
+- Security:
+  - HTTPS required except in development environments
+  - never log `Authorization` header values
+  - rate-limit `/api/join`
 
-## Data Model
+## 2. v1 Server Deliverables
 
-### sessions
+- Tokenized session lifecycle: create session, rotate join link, join toggle.
+- Player lifecycle: self-join, list players (GM), revoke player (GM).
+- Event ingestion and polling: `roll`, `push`, `join`, `leave`, `strain_reset`.
+- Scene strain state management: push-based increment + GM reset.
+- Deterministic error envelope and status-code semantics.
 
--   id (BIGINT PK AUTO_INCREMENT)
--   name (VARCHAR 128)
--   joining_enabled (BOOLEAN DEFAULT 1)
--   created_at (DATETIME)
--   updated_at (DATETIME)
+## 3. Data Model Implementation Checklist
 
-### session_join_tokens
+Implement tables and constraints exactly per canonical contract Section 6:
 
--   id (BIGINT PK AUTO_INCREMENT)
--   session_id (FK → sessions.id)
--   token_hash (BINARY(32) UNIQUE)
--   token_prefix (CHAR(12))
--   revoked_at (DATETIME NULL)
--   created_at (DATETIME)
--   last_used_at (DATETIME NULL)
+- `sessions`
+- `session_join_tokens`
+- `session_tokens`
+- `session_state`
+- `events`
 
-### session_tokens
+Additional requirements:
+- UNIQUE (`state_session_id`, `state_name`) in `session_state`.
+- Ensure required keys exist for each new session:
+  - `state_name='scene_strain'` with string integer value (for example `"0"`).
+  - `state_name='joining_enabled'` with boolean string value (`"true"`/`"false"`).
+- Index `events(event_session_id, event_id)` for polling.
+- Do not add database foreign key constraints; enforce relationships in application logic.
 
--   id (BIGINT PK AUTO_INCREMENT)
--   session_id (FK → sessions.id)
--   role (ENUM 'gm','player')
--   display_name (VARCHAR 64 NULL)
--   token_hash (BINARY(32) UNIQUE)
--   token_prefix (CHAR(12))
--   revoked_at (DATETIME NULL)
--   created_at (DATETIME)
--   last_seen_at (DATETIME NULL)
+## 4. Middleware and Shared Utilities
 
-### events
+Implement before route handlers:
 
--   id (BIGINT PK AUTO_INCREMENT)
--   session_id (FK → sessions.id)
--   actor_token_id (FK → session_tokens.id NULL)
--   type (VARCHAR 64)
--   payload_json (JSON)
--   created_at (DATETIME(6))
+1. Bearer token parser and hash lookup utility.
+2. Auth guards:
+   - join token guard
+   - gm/player session token guard
+   - GM role guard
+3. Error responder that always emits:
 
-Indexes: - events(session_id, id) - session_tokens(token_hash) -
-session_join_tokens(token_hash)
-
-------------------------------------------------------------------------
-
-## Authentication Model
-
-Tokens: 
-  - GM token (role=gm) 
-  - Join token (mints player tokens)
-  - Player token (role=player)
-
-All tokens: 
-  - 32 random bytes
-  - base64url encoded 
-  - Store SHA-256 hash in DB
-
-------------------------------------------------------------------------
-
-## Routes
-
-### Create Session (GM)
-
-POST /api/gm/sessions
-
-Creates: 
-  - session row 
-  - GM token 
-  - join token
-
-Returns: 
-  - session_id 
-  - gm_token 
-  - join_links
-------------------------------------------------------------------------
-
-### Rotate Join Link (GM)
-
-POST /api/gm/sessions/:id/join-link/rotate
-
-Revokes old join tokens and issues new one.
-
-------------------------------------------------------------------------
-
-### Enable/Disable Joining (GM)
-
-POST /api/gm/sessions/:id/joining
-
-Body: { "joining_enabled": true\|false }
-
-------------------------------------------------------------------------
-
-### Self-Register Player
-
-POST /api/join Authorization: Bearer `<join_token>`{=html}
-
-Body: { "display_name": "Alice" }
-
-Returns: { "player_token": "`<opaque>`{=html}", "display_name": "Alice"
+```json
+{
+  "error": {
+    "code": "...",
+    "message": "..."
+  }
 }
+```
 
-------------------------------------------------------------------------
+4. Validation helper returning `422 VALIDATION_ERROR`.
+5. Event writer helper returning normalized event objects.
 
-### Fetch Session Snapshot
+## 5. Endpoint Build Order (Server)
 
-GET /api/session Authorization: Bearer `<player_or_gm_token>`{=html}
+### Step S1: Session bootstrap routes
+- `POST /api/sessions`
+- `POST /api/join`
+- `GET /api/session`
 
-Returns session metadata and current state.
+Must satisfy:
+- join link format: `https://<host>/join#join=<token>`
+- `latest_event_id=0` when no events exist
+- `join` event emitted on successful join
+- initialize `session_state` defaults (`scene_strain=\"0\"`, `joining_enabled=\"true\"`)
 
-------------------------------------------------------------------------
+### Step S2: Event stream routes
+- `GET /api/events?since_id=<int>&limit=<int>`
+- `POST /api/events`
 
-### Poll Events
+Must satisfy:
+- `since_id` is exclusive (`event_id > since_id`)
+- ascending event order
+- default `limit=10`, min `1`, max `100`
+- `204` with no body when no events
+- reject event types other than `roll`/`push`
+- actor derived from auth token, never from request body
 
-GET /api/events?since_id=123&limit=100 Authorization: Bearer
-`<player_or_gm_token>`{=html}
+### Step S3: GM management routes
+- `POST /api/sessions/:session_id/join-link/rotate`
+- `POST /api/gm/sessions/:session_id/joining`
+- `POST /api/gm/sessions/:session_id/reset_scene_strain`
+- `GET /api/gm/sessions/:session_id/players`
+- `POST /api/gm/sessions/:session_id/players/:token_id/revoke`
 
-Returns: - 200 + events if new - 204 if none
+Must satisfy:
+- GM token bound to same session
+- revoke is idempotent
+- first revoke emits exactly one `leave` event
+- reset emits `strain_reset`
+- join toggle reads/writes `session_state.joining_enabled` as boolean string values
 
-------------------------------------------------------------------------
+### Step S4: Transaction hardening
+Add explicit DB transactions for:
+- join token mint + `join` event write
+- push with strain increment + event write
+- joining toggle state write
+- revoke state change + `leave` event write
+- reset strain + `strain_reset` event write
 
-### Submit Roll
+Concurrency requirements:
+- lock `scene_strain` row on updates (`SELECT ... FOR UPDATE` or equivalent)
+- lock/serialize `joining_enabled` state row updates
+- no partial write state
 
-POST /api/rolls Authorization: Bearer `<player_token>`{=html}
+## 6. Validation Rules
 
-Inserts event with type 'roll'.
+### `POST /api/join`
+- `display_name` required, trimmed length 1..64
+- reject control characters
+- reject if parsed `joining_enabled` is false (`403 JOIN_DISABLED`)
 
-------------------------------------------------------------------------
+### `POST /api/events`
+- body must contain only `type` and `payload`
+- `type` in `{"roll","push"}`
+- `roll.payload`: `successes` and `banes` integers 0..99
+- `push.payload`: `successes`, `banes` integers 0..99 and `strain` boolean
 
-### Set Scene Strain (GM)
+### Query params
+- `since_id`: integer >= 0
+- `limit`: integer 1..100 (default 10)
 
-POST /api/state/scene-strain Authorization: Bearer `<gm_token>`{=html}
+## 7. Error Code Mapping
 
-Updates state and inserts event 'scene_strain_set'.
+Use canonical codes from contract Section 5, including:
+- `TOKEN_MISSING` (401)
+- `TOKEN_INVALID` (401)
+- `TOKEN_REVOKED` (403)
+- `ROLE_FORBIDDEN` (403)
+- `JOIN_DISABLED` (403)
+- `VALIDATION_ERROR` (422)
+- `EVENT_TYPE_UNSUPPORTED` (422)
+- `RATE_LIMITED` (429)
 
-------------------------------------------------------------------------
+## 8. Server Test Plan (Required)
 
-## Error Codes
+### Unit/service tests
+- token hash lookup and role guard behavior
+- payload validator coverage for all invalid permutations
+- event serializer output shape
 
--   401 Unauthorized
--   403 Forbidden
--   404 Not Found
--   409 Conflict
--   429 Too Many Requests
+### API contract tests
+- each endpoint: success + auth failure + validation failure
+- polling behavior: exclusivity, ordering, 200 vs 204
+- revoke idempotency (`event_emitted` true first time, false repeat)
 
-------------------------------------------------------------------------
+### Concurrency tests
+- concurrent `push` with `strain=true` preserves exact strain total
+- concurrent revoke attempts produce one `leave` event
+- reset strain transaction does not lose concurrent event writes
 
-## Nginx / PHP-FPM Notes
+## 9. Definition of Done (Server)
 
--   Polling only (no long-lived connections required)
--   Ensure HTTPS
--   Do not log Authorization headers
--   Rate-limit /api/join
+- All routes in Section 5 implemented and documented responses match contract.
+- All non-2xx responses use the standard error envelope.
+- Transaction and idempotency guarantees are verified in tests.
+- No undocumented response fields remain.
+
+## 10. Explicit v1 Deferral
+
+- GM "set scene strain to arbitrary value" endpoint is intentionally deferred.
+- `leave` events are emitted only on explicit revoke in v1.
