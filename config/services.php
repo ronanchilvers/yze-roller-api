@@ -6,11 +6,13 @@ declare(strict_types=1);
 // - $container - A flightphp/Container instance
 // - $settings - The application configuration array
 
-// The PDO database connection
+use flight\database\SimplePdo;
+
+// The SimplePdo database connection
 $container->set(
-    PDO::class,
+    SimplePdo::class,
     function () use ($settings) {
-        return new PDO(
+        return new SimplePdo(
             sprintf(
                 "%s:host=%s;dbname=%s;charset=utf8mb4",
                 $settings["database"]["adapter"],
