@@ -35,3 +35,27 @@
 - What: Schema blocker fixes were applied: `session_state` now uses `state_name VARCHAR(64)`, `state_value VARCHAR(256)`, and UNIQUE (`state_session_id`, `state_name`); trailing comma removed; timestamp precision normalized to `DATETIME(6)` for schema datetime fields.
   Where: `schema/001_initial_schema.sql`.
   Evidence: Updated DDL definitions and keys in current schema file.
+
+- What: Runtime bootstrap is present but API implementation is not started; only a placeholder `/api` route exists.
+  Where: `web/index.php` (`Flight::route("/api", function () { /* placeholder */ });`).
+  Evidence: No endpoint handlers are registered for contract routes yet.
+
+- What: Database access is currently a single PDO service from settings and no repository/service layer exists yet.
+  Where: `config/services.php` (`$container->set(PDO::class, ...)`).
+  Evidence: `src/` is empty and container wiring only registers PDO.
+
+- What: Environment configuration is loaded from `config/settings.php` with optional overrides from `.env.php`.
+  Where: `config/settings.php`.
+  Evidence: Base config array is merged with `.env.php` when present.
+
+- What: There are no automated tests or test scaffolding committed for the server API yet.
+  Where: `tests/`.
+  Evidence: Directory is empty while contract/runbook requires unit, API, and concurrency test coverage.
+
+- What: Canonical schema DDL is maintained in `schema/001_initial_schema.sql`.
+  Where: `schema/001_initial_schema.sql`.
+  Evidence: No duplicate schema file is present under `docs/`.
+
+- What: Database configuration uses `database.adapter` key consistently.
+  Where: `config/settings.php`, `config/services.php`, `.env.php.dist`.
+  Evidence: DSN wiring and config templates all reference `adapter`.
