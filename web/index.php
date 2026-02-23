@@ -20,6 +20,7 @@ Flight::registerContainerHandler([$container, 'get']);
 Flight::post('/api/sessions', [SessionsController::class, 'create']);
 Flight::route('GET /api/session', [SessionController::class, 'show']);
 Flight::route('GET /api/events', [EventsController::class, 'index']);
+Flight::route('POST /api/events', [EventsController::class, 'create']);
 
 Flight::post('/api/join', [JoinController::class, 'create']);
 

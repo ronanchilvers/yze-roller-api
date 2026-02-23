@@ -191,3 +191,15 @@
 - What: Unit tests cover events polling auth/validation failures, empty `204`, success mapping, and internal-error fallback.
   Where: `tests/EventsPollServiceTest.php`.
   Evidence: Tests verify default `limit=10`, `next_since_id` from last event, actor/payload mapping, and `INTERNAL_ERROR` on query failure.
+
+- What: `POST /api/events` submit endpoint is now wired through `EventsController::create` to `EventsSubmitService`.
+  Where: `web/index.php`, `src/Controller/EventsController.php`, `src/Service/EventsSubmitService.php`, `config/services.php`.
+  Evidence: Route registration includes `POST /api/events`; service is DI-registered and invoked by controller method.
+
+- What: Event submit flow now enforces session-token auth + payload validation, supports `roll` and `push`, and uses a DB transaction with `FOR UPDATE` for `push` when `strain=true`.
+  Where: `src/Service/EventsSubmitService.php`.
+  Evidence: `submit()` branches by event type; `push` + `strain=true` executes `SimplePdo::transaction()`, locks `scene_strain` row, updates `session_state`, then inserts event.
+
+- What: `POST /api/events` unit tests now cover auth failure, validation failure, roll success, push success (strain and non-strain), transactional state update behavior, and internal-error fallback.
+  Where: `tests/EventsSubmitServiceTest.php`.
+  Evidence: PHPUnit cases assert response envelope, payload shape, query/insert/update interactions, and error-code mapping.
