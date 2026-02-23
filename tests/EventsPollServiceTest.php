@@ -82,8 +82,11 @@ final class EventsPollServiceTest extends TestCase
         $eventsDb->expects(self::once())
             ->method('fetchAll')
             ->with(
-                self::stringContains('FROM events e'),
-                [7, 0, 10]
+                self::logicalAnd(
+                    self::stringContains('FROM events e'),
+                    self::stringContains('LIMIT 10')
+                ),
+                [7, 0]
             )
             ->willReturn([]);
 
@@ -117,8 +120,11 @@ final class EventsPollServiceTest extends TestCase
         $eventsDb->expects(self::once())
             ->method('fetchAll')
             ->with(
-                self::stringContains('FROM events e'),
-                [7, 120, 2]
+                self::logicalAnd(
+                    self::stringContains('FROM events e'),
+                    self::stringContains('LIMIT 2')
+                ),
+                [7, 120]
             )
             ->willReturn([
                 new Collection([

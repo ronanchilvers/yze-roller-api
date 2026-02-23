@@ -52,7 +52,7 @@ final class EventsPollService
         }
 
         try {
-            $rows = $this->db->fetchAll(
+            $sql = sprintf(
                 'SELECT
                     e.event_id,
                     e.event_type,
@@ -66,8 +66,13 @@ final class EventsPollService
                  LEFT JOIN session_tokens st ON st.token_id = e.event_actor_token_id
                  WHERE e.event_session_id = ? AND e.event_id > ?
                  ORDER BY e.event_id ASC
-                 LIMIT ?',
-                [$sessionId, $sinceId, $limit]
+                 LIMIT %d',
+                $limit
+            );
+
+            $rows = $this->db->fetchAll(
+                $sql,
+                [$sessionId, $sinceId]
             );
         } catch (Throwable) {
             return (new Response())->withError(
