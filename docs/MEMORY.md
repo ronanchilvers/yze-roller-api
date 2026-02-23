@@ -99,3 +99,15 @@
 - What: Unit tests cover token lookup query behavior and binary-hash parameter expectations.
   Where: `tests/TokenLookupTest.php`.
   Evidence: PHPUnit suite verifies null/result paths, revoked derivation, and exact 32-byte hash parameter use.
+
+- What: Auth guard service now provides reusable join/session token enforcement and GM-role checks with contract-aligned error responses.
+  Where: `src/Auth/AuthGuard.php`.
+  Evidence: `requireJoinToken()`, `requireSessionToken()`, and `requireGmRole()` return token rows on success or `Response` errors (`TOKEN_MISSING`, `TOKEN_INVALID`, `JOIN_TOKEN_REVOKED`, `TOKEN_REVOKED`, `ROLE_FORBIDDEN`).
+
+- What: Service container now exposes `AuthGuard` for route/controller use.
+  Where: `config/services.php`.
+  Evidence: `AuthGuard::class` is registered using `TokenLookup::class`.
+
+- What: Unit tests cover auth guard success and failure paths for join/session/GM role checks.
+  Where: `tests/AuthGuardTest.php`.
+  Evidence: Suite verifies missing/malformed/invalid/revoked token paths and role gating behavior against response codes and envelope fields.

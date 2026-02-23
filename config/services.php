@@ -7,6 +7,7 @@ declare(strict_types=1);
 // - $settings - The application configuration array
 
 use flight\database\SimplePdo;
+use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
 
 // The SimplePdo database connection
@@ -31,5 +32,13 @@ $container->set(
     TokenLookup::class,
     function () use ($container) {
         return new TokenLookup($container->get(SimplePdo::class));
+    }
+);
+
+// Auth guard helper
+$container->set(
+    AuthGuard::class,
+    function () use ($container) {
+        return new AuthGuard($container->get(TokenLookup::class));
     }
 );
