@@ -111,3 +111,15 @@
 - What: Unit tests cover auth guard success and failure paths for join/session/GM role checks.
   Where: `tests/AuthGuardTest.php`.
   Evidence: Suite verifies missing/malformed/invalid/revoked token paths and role gating behavior against response codes and envelope fields.
+
+- What: Request validation service now enforces contract rules for `since_id`, `limit`, `display_name`, and `POST /api/events` payloads.
+  Where: `src/Validation/RequestValidator.php`.
+  Evidence: Validator returns normalized values on success or contract-aligned `Response` errors (`VALIDATION_ERROR`, `EVENT_TYPE_UNSUPPORTED`) with optional `details`.
+
+- What: Service container now exposes request validator for route/controller reuse.
+  Where: `config/services.php`.
+  Evidence: `RequestValidator::class` is registered as a container service.
+
+- What: Unit tests cover validator success and failure paths for query params, display-name validation, and roll/push payload contracts.
+  Where: `tests/RequestValidatorTest.php`.
+  Evidence: Test suite verifies allowed values, unsupported event types, unknown fields rejection, integer range checks, and boolean `strain` enforcement.

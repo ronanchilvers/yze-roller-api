@@ -9,6 +9,7 @@ declare(strict_types=1);
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
+use YZERoller\Api\Validation\RequestValidator;
 
 // The SimplePdo database connection
 $container->set(
@@ -40,5 +41,13 @@ $container->set(
     AuthGuard::class,
     function () use ($container) {
         return new AuthGuard($container->get(TokenLookup::class));
+    }
+);
+
+// Request validation helper
+$container->set(
+    RequestValidator::class,
+    function () {
+        return new RequestValidator();
     }
 );
