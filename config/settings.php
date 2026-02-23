@@ -12,7 +12,8 @@ $settings = [
         "username" => null,
         "password" => null,
         "name" => null,
-    ]
+    ],
+    "cors" => [],
 ];
 
 if (file_exists(__DIR__ . "/../.env.php")) {

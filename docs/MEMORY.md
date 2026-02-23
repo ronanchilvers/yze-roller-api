@@ -271,3 +271,27 @@
 - What: Unit tests cover GM scene strain reset service for auth/role/session checks, path/body validation, missing resources, state-row update/insert branches, invalid stored-value fallback, and internal error fallback.
   Where: `tests/GmSceneStrainResetServiceTest.php`.
   Evidence: PHPUnit cases assert response envelopes, payload shape (`session_id`, `scene_strain`, `event_id`), and DB interaction patterns for each branch.
+
+- What: `/api/join` now enforces `RATE_LIMITED` protection before join-state lookup and transactional token minting.
+  Where: `src/Controller/JoinController.php`, `src/Service/JoinService.php`, `src/Security/JoinRateLimiter.php`, `src/Security/FileJoinRateLimiter.php`, `config/services.php`.
+  Evidence: Join controller passes client IP to service; service checks `JoinRateLimiter::allow()` and returns `429 RATE_LIMITED` on rejection; DI wires a file-backed limiter.
+
+- What: Join rate limiting is implemented with a local file-backed fixed window using `flock` for process-safe updates on a single host.
+  Where: `src/Security/FileJoinRateLimiter.php`.
+  Evidence: Limiter reads/writes JSON state in `sys_get_temp_dir()/yze_roller_api_join_rate_limit.json`, prunes expired windows, increments counts, and rejects above configured threshold.
+
+- What: Unit tests now cover both join-rate limiter mechanics and join-service `429` behavior.
+  Where: `tests/FileJoinRateLimiterTest.php`, `tests/JoinServiceTest.php`.
+  Evidence: Tests verify blocking after max attempts, window reset behavior, key scoping, and service response mapping to `RATE_LIMITED`.
+
+- What: CORS behavior is now config-driven; headers are only emitted when `settings['cors']['origins']` is populated.
+  Where: `config/settings.php`, `.env.php.dist`, `web/index.php`, `src/Http/CorsPolicy.php`.
+  Evidence: Bootstrap checks `CorsPolicy::isEnabled()` before registering CORS hook + preflight route; default settings include empty `cors` array (disabled).
+
+- What: Preflight handling is enabled only when CORS config is active and returns `204` for `OPTIONS` requests.
+  Where: `web/index.php`.
+  Evidence: `Flight::route('OPTIONS *', ...)` is conditionally registered inside CORS-enabled branch.
+
+- What: CORS policy supports allowlist origins, wildcard reflection, configurable methods/headers/exposed headers/credentials/max-age, and origin filtering.
+  Where: `src/Http/CorsPolicy.php`, `tests/CorsPolicyTest.php`.
+  Evidence: Resolver builds `Access-Control-*` headers only for allowed request origins; tests verify enabled state and header generation behavior.
