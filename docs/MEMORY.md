@@ -231,3 +231,15 @@
 - What: Unit tests cover rotate join-link endpoint service behaviors including auth failures, role/session checks, session-not-found, successful revoke+mint, and transaction failure fallback.
   Where: `tests/GmJoinLinkRotateServiceTest.php`.
   Evidence: Tests assert response envelopes and DB interaction shape for `update()` + `insert()` inside transaction.
+
+- What: GM players list endpoint is now implemented at `GET /api/gm/sessions/:session_id/players`.
+  Where: `web/index.php`, `src/Controller/GmSessionsController.php`, `src/Service/GmPlayersListService.php`, `config/services.php`.
+  Evidence: Route wiring invokes `listPlayers()`; service is DI-registered and enforces session token auth + GM role + same-session binding.
+
+- What: Player-list response now maps player token rows to contract shape with revoke status and RFC3339 timestamps.
+  Where: `src/Service/GmPlayersListService.php`.
+  Evidence: Service returns `players[]` entries containing `token_id`, `display_name`, `role`, `revoked`, `created_at`, `last_seen_at`, and `revoked_at`.
+
+- What: Unit tests cover GM players list service for auth/role/session checks, session-not-found handling, payload mapping, and internal error fallback.
+  Where: `tests/GmPlayersListServiceTest.php`.
+  Evidence: Tests assert response envelopes and mapped output for active/revoked players including timestamp conversions and nullable fields.

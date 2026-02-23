@@ -12,6 +12,7 @@ use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Service\EventsPollService;
 use YZERoller\Api\Service\EventsSubmitService;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
+use YZERoller\Api\Service\GmPlayersListService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 use YZERoller\Api\Service\JoinService;
 use YZERoller\Api\Service\SessionSnapshotService;
@@ -139,6 +140,18 @@ $container->set(
             $container->get(AuthGuard::class),
             $container->get(RequestValidator::class),
             $settings['site']['url']
+        );
+    }
+);
+
+// GM players list service (GET /api/gm/sessions/:session_id/players)
+$container->set(
+    GmPlayersListService::class,
+    function () use ($container) {
+        return new GmPlayersListService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
         );
     }
 );

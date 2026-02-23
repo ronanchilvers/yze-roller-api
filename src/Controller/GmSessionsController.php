@@ -7,13 +7,15 @@ namespace YZERoller\Api\Controller;
 use Flight;
 use flight\net\Request;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
+use YZERoller\Api\Service\GmPlayersListService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 
 final class GmSessionsController extends Base
 {
     public function __construct(
         private readonly GmSessionJoiningService $gmSessionJoiningService,
-        private readonly GmJoinLinkRotateService $gmJoinLinkRotateService
+        private readonly GmJoinLinkRotateService $gmJoinLinkRotateService,
+        private readonly GmPlayersListService $gmPlayersListService
     ) {
     }
 
@@ -32,6 +34,14 @@ final class GmSessionsController extends Base
         $authorizationHeader = Request::getHeader('Authorization', '');
 
         $response = $this->gmJoinLinkRotateService->rotate($authorizationHeader, $sessionId);
+        $this->sendResponse($response);
+    }
+
+    public function listPlayers(string $sessionId): void
+    {
+        $authorizationHeader = Request::getHeader('Authorization', '');
+
+        $response = $this->gmPlayersListService->listPlayers($authorizationHeader, $sessionId);
         $this->sendResponse($response);
     }
 }
