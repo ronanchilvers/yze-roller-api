@@ -87,3 +87,15 @@
 - What: Unit tests cover bearer parsing and token hashing behavior.
   Where: `tests/BearerTokenTest.php`.
   Evidence: Valid/invalid header parsing, case-insensitive bearer scheme, binary hash length/format, and empty-token exception are verified.
+
+- What: Token lookup service now resolves join/session tokens via `SimplePdo` and derives revoked state for guard usage.
+  Where: `src/Auth/TokenLookup.php`.
+  Evidence: `findJoinTokenByOpaqueToken()` and `findSessionTokenByOpaqueToken()` query token tables by binary SHA-256 hash and add `is_revoked`.
+
+- What: Service container now exposes token lookup helper for dependency injection.
+  Where: `config/services.php`.
+  Evidence: `TokenLookup::class` is registered and constructed from `SimplePdo::class`.
+
+- What: Unit tests cover token lookup query behavior and binary-hash parameter expectations.
+  Where: `tests/TokenLookupTest.php`.
+  Evidence: PHPUnit suite verifies null/result paths, revoked derivation, and exact 32-byte hash parameter use.
