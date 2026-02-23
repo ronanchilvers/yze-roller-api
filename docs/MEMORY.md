@@ -175,3 +175,19 @@
 - What: Flight route registration for GET session snapshot must use `Flight::route('/api/session', ...)` (not `Flight::get(...)`), and path must be singular `/api/session`.
   Where: `web/index.php`.
   Evidence: `Flight::get()` in this stack is not a GET-route helper and led to missing-route behavior; corrected to route registration.
+
+- What: `GET /api/events` polling endpoint is now wired through a dedicated poll service and method-specific route registration.
+  Where: `web/index.php`, `src/Controller/EventsController.php`, `src/Service/EventsPollService.php`.
+  Evidence: Route registration uses `Flight::route('GET /api/events', ...)`; controller delegates to service and returns contract-style `Response`.
+
+- What: Events poll service now enforces auth + query validation and implements contract polling semantics (`since_id` exclusive, ascending order, `limit` bounds, `204` for no events).
+  Where: `src/Service/EventsPollService.php`.
+  Evidence: Service uses `AuthGuard` + `RequestValidator`, queries by `event_id > since_id`, and returns either `withNoContent()` or `{ events, next_since_id }`.
+
+- What: Event serialization for polling now includes contract fields with RFC3339 timestamps and decoded payload JSON, including nullable actor mapping.
+  Where: `src/Service/EventsPollService.php`.
+  Evidence: Output maps to `id`, `type`, `session_id`, `occurred_at`, `actor`, `payload`; actor is resolved from joined `session_tokens` data.
+
+- What: Unit tests cover events polling auth/validation failures, empty `204`, success mapping, and internal-error fallback.
+  Where: `tests/EventsPollServiceTest.php`.
+  Evidence: Tests verify default `limit=10`, `next_since_id` from last event, actor/payload mapping, and `INTERNAL_ERROR` on query failure.

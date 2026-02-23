@@ -9,6 +9,7 @@ declare(strict_types=1);
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
+use YZERoller\Api\Service\EventsPollService;
 use YZERoller\Api\Service\JoinService;
 use YZERoller\Api\Service\SessionSnapshotService;
 use YZERoller\Api\Service\SessionBootstrapService;
@@ -86,6 +87,18 @@ $container->set(
         return new SessionSnapshotService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class)
+        );
+    }
+);
+
+// Event polling service (GET /api/events)
+$container->set(
+    EventsPollService::class,
+    function () use ($container) {
+        return new EventsPollService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
         );
     }
 );

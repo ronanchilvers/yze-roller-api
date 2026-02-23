@@ -21,6 +21,9 @@
             "YZERoller\\Api\\": "src/"
         }
     },
+    "config": {
+        "process-timeout" : 0
+    },
     "scripts": {
       "serve": "cd web && /opt/homebrew/bin/php -S 127.0.0.1:8080"
     }
