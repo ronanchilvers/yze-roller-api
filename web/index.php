@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use flight\Container;
 use YZERoller\Api\Controller\EventsController;
+use YZERoller\Api\Controller\GmSessionsController;
 use YZERoller\Api\Controller\JoinController;
 use YZERoller\Api\Controller\SessionController;
 use YZERoller\Api\Controller\SessionsController;
@@ -21,6 +22,7 @@ Flight::post('/api/sessions', [SessionsController::class, 'create']);
 Flight::route('GET /api/session', [SessionController::class, 'show']);
 Flight::route('GET /api/events', [EventsController::class, 'index']);
 Flight::route('POST /api/events', [EventsController::class, 'create']);
+Flight::route('POST /api/gm/sessions/@session_id/joining', [GmSessionsController::class, 'updateJoining']);
 
 Flight::post('/api/join', [JoinController::class, 'create']);
 

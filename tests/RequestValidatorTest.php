@@ -101,6 +101,48 @@ final class RequestValidatorTest extends TestCase
         self::assertSame(Response::ERROR_VALIDATION_ERROR, $long->data()['error']['code']);
     }
 
+    public function testValidatePositiveIdAcceptsIntegerAndNumericString(): void
+    {
+        $validator = new RequestValidator();
+
+        self::assertSame(7, $validator->validatePositiveId(7, 'session_id'));
+        self::assertSame(9, $validator->validatePositiveId('9', 'session_id'));
+    }
+
+    public function testValidatePositiveIdRejectsInvalidValues(): void
+    {
+        $validator = new RequestValidator();
+
+        $zero = $validator->validatePositiveId(0, 'session_id');
+        self::assertInstanceOf(Response::class, $zero);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $zero->data()['error']['code']);
+
+        $bad = $validator->validatePositiveId('x', 'session_id');
+        self::assertInstanceOf(Response::class, $bad);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $bad->data()['error']['code']);
+    }
+
+    public function testValidateJoiningTogglePayloadAcceptsBooleanField(): void
+    {
+        $validator = new RequestValidator();
+
+        self::assertTrue($validator->validateJoiningTogglePayload(['joining_enabled' => true]));
+        self::assertFalse($validator->validateJoiningTogglePayload(['joining_enabled' => false]));
+    }
+
+    public function testValidateJoiningTogglePayloadRejectsInvalidShape(): void
+    {
+        $validator = new RequestValidator();
+
+        $missing = $validator->validateJoiningTogglePayload([]);
+        self::assertInstanceOf(Response::class, $missing);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $missing->data()['error']['code']);
+
+        $notBool = $validator->validateJoiningTogglePayload(['joining_enabled' => 'false']);
+        self::assertInstanceOf(Response::class, $notBool);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $notBool->data()['error']['code']);
+    }
+
     public function testValidateEventSubmitPayloadAcceptsRoll(): void
     {
         $validator = new RequestValidator();

@@ -203,3 +203,19 @@
 - What: `POST /api/events` unit tests now cover auth failure, validation failure, roll success, push success (strain and non-strain), transactional state update behavior, and internal-error fallback.
   Where: `tests/EventsSubmitServiceTest.php`.
   Evidence: PHPUnit cases assert response envelope, payload shape, query/insert/update interactions, and error-code mapping.
+
+- What: GM joining toggle endpoint is now implemented at `POST /api/gm/sessions/:session_id/joining`.
+  Where: `web/index.php`, `src/Controller/GmSessionsController.php`, `src/Service/GmSessionJoiningService.php`, `config/services.php`.
+  Evidence: Route wiring invokes service through controller; service is registered in DI and enforces GM/session authorization.
+
+- What: Joining toggle writes `session_state.joining_enabled` transactionally with row-level lock semantics.
+  Where: `src/Service/GmSessionJoiningService.php`.
+  Evidence: Service executes `SELECT ... FOR UPDATE` on `session_state` and then updates/inserts canonical string state values (`"true"`/`"false"`).
+
+- What: Validator now includes reusable positive-ID validation and strict payload checks for joining toggle requests.
+  Where: `src/Validation/RequestValidator.php`, `tests/RequestValidatorTest.php`.
+  Evidence: `validatePositiveId()` and `validateJoiningTogglePayload()` added; tests verify accepted and rejected inputs.
+
+- What: Unit tests cover the new GM joining toggle service for auth, role checks, session binding, session existence, validation, transactional update/insert, and internal error fallback.
+  Where: `tests/GmSessionJoiningServiceTest.php`.
+  Evidence: PHPUnit suite asserts response codes/envelopes and expected DB interaction patterns across all major paths.

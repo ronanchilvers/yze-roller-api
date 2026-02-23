@@ -111,6 +111,48 @@ final class RequestValidator
         return $sessionName;
     }
 
+    public function validatePositiveId(mixed $value, string $field = 'id'): int|Response
+    {
+        if (is_int($value) && $value >= 1) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^[1-9]\d*$/', trim($value)) === 1) {
+            return (int) trim($value);
+        }
+
+        return $this->validationError(
+            sprintf('%s must be an integer >= 1.', $field),
+            ['field' => $field]
+        );
+    }
+
+    public function validateJoiningTogglePayload(mixed $body): bool|Response
+    {
+        if (!is_array($body)) {
+            return $this->validationError(
+                'Request body must be a JSON object.',
+                ['field' => 'body']
+            );
+        }
+
+        if (!$this->hasExactlyKeys($body, ['joining_enabled'])) {
+            return $this->validationError(
+                'Body must contain only joining_enabled.',
+                ['field' => 'joining_enabled']
+            );
+        }
+
+        if (!is_bool($body['joining_enabled'])) {
+            return $this->validationError(
+                'joining_enabled must be a boolean.',
+                ['field' => 'joining_enabled']
+            );
+        }
+
+        return $body['joining_enabled'];
+    }
+
     /**
      * @param array<string,mixed> $body
      *
