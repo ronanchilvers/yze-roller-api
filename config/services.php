@@ -9,6 +9,7 @@ declare(strict_types=1);
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
+use YZERoller\Api\Service\SessionBootstrapService;
 use YZERoller\Api\Validation\RequestValidator;
 
 // The SimplePdo database connection
@@ -49,5 +50,17 @@ $container->set(
     RequestValidator::class,
     function () {
         return new RequestValidator();
+    }
+);
+
+// Session bootstrap service (POST /api/sessions)
+$container->set(
+    SessionBootstrapService::class,
+    function () use ($container, $settings) {
+        return new SessionBootstrapService(
+            $container->get(SimplePdo::class),
+            $container->get(RequestValidator::class),
+            $settings['site']['url']
+        );
     }
 );

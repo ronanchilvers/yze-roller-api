@@ -90,6 +90,27 @@ final class RequestValidator
         return $displayName;
     }
 
+    public function validateSessionName(mixed $value): string|Response
+    {
+        if (!is_string($value)) {
+            return $this->validationError(
+                'session_name is required and must be a string.',
+                ['field' => 'session_name']
+            );
+        }
+
+        $sessionName = trim($value);
+        $length = function_exists('mb_strlen') ? mb_strlen($sessionName) : strlen($sessionName);
+        if ($length < 1 || $length > 128) {
+            return $this->validationError(
+                'session_name must be between 1 and 128 characters.',
+                ['field' => 'session_name']
+            );
+        }
+
+        return $sessionName;
+    }
+
     /**
      * @param array<string,mixed> $body
      *

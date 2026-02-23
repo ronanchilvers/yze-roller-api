@@ -123,3 +123,23 @@
 - What: Unit tests cover validator success and failure paths for query params, display-name validation, and roll/push payload contracts.
   Where: `tests/RequestValidatorTest.php`.
   Evidence: Test suite verifies allowed values, unsupported event types, unknown fields rejection, integer range checks, and boolean `strain` enforcement.
+
+- What: `POST /api/sessions` is now wired and backed by a transactional session bootstrap service.
+  Where: `web/index.php`, `src/Controller/SessionsController.php`, `src/Service/SessionBootstrapService.php`.
+  Evidence: Route registration calls controller, which invokes service and returns contract-shaped `Response`.
+
+- What: Session bootstrap implementation now creates session + GM token + join token + required `session_state` defaults in one transaction.
+  Where: `src/Service/SessionBootstrapService.php`.
+  Evidence: Service inserts `sessions`, `session_tokens` (gm), `session_join_tokens`, and `session_state` (`scene_strain=0`, `joining_enabled=true`) and returns `201` payload with `join_link`.
+
+- What: Validator now includes `session_name` checks for create-session requests.
+  Where: `src/Validation/RequestValidator.php`.
+  Evidence: `validateSessionName()` enforces trimmed length 1..128 and returns `VALIDATION_ERROR` response when invalid.
+
+- What: Response mapping now treats `INTERNAL_ERROR` as HTTP `500`.
+  Where: `src/Response.php`.
+  Evidence: `defaultStatusForErrorCode()` maps `ERROR_INTERNAL` to `STATUS_INTERNAL_SERVER_ERROR`.
+
+- What: Unit tests cover session bootstrap behavior (validation failure, success payload + inserts, transaction error path).
+  Where: `tests/SessionBootstrapServiceTest.php`.
+  Evidence: Tests assert insert/write flow, token hash/prefix behavior, RFC3339 `created_at` formatting, and internal-error fallback.

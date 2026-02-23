@@ -77,6 +77,30 @@ final class RequestValidatorTest extends TestCase
         self::assertSame(Response::ERROR_VALIDATION_ERROR, $control->data()['error']['code']);
     }
 
+    public function testValidateSessionNameTrimsAndAcceptsValidValue(): void
+    {
+        $validator = new RequestValidator();
+
+        self::assertSame('Streetwise Night', $validator->validateSessionName('  Streetwise Night  '));
+    }
+
+    public function testValidateSessionNameRejectsInvalidInput(): void
+    {
+        $validator = new RequestValidator();
+
+        $missing = $validator->validateSessionName(null);
+        self::assertInstanceOf(Response::class, $missing);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $missing->data()['error']['code']);
+
+        $empty = $validator->validateSessionName('   ');
+        self::assertInstanceOf(Response::class, $empty);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $empty->data()['error']['code']);
+
+        $long = $validator->validateSessionName(str_repeat('x', 129));
+        self::assertInstanceOf(Response::class, $long);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $long->data()['error']['code']);
+    }
+
     public function testValidateEventSubmitPayloadAcceptsRoll(): void
     {
         $validator = new RequestValidator();

@@ -176,6 +176,7 @@ class Response
             self::ERROR_VALIDATION_ERROR,
             self::ERROR_EVENT_TYPE_UNSUPPORTED => self::STATUS_UNPROCESSABLE_ENTITY,
             self::ERROR_RATE_LIMITED => self::STATUS_TOO_MANY_REQUESTS,
+            self::ERROR_INTERNAL => self::STATUS_INTERNAL_SERVER_ERROR,
             default => self::STATUS_BAD_REQUEST,
         };
     }
