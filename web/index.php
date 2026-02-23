@@ -22,6 +22,7 @@ Flight::post('/api/sessions', [SessionsController::class, 'create']);
 Flight::route('GET /api/session', [SessionController::class, 'show']);
 Flight::route('GET /api/events', [EventsController::class, 'index']);
 Flight::route('POST /api/events', [EventsController::class, 'create']);
+Flight::route('POST /api/sessions/@session_id/join-link/rotate', [GmSessionsController::class, 'rotateJoinLink']);
 Flight::route('POST /api/gm/sessions/@session_id/joining', [GmSessionsController::class, 'updateJoining']);
 
 Flight::post('/api/join', [JoinController::class, 'create']);

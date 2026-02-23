@@ -219,3 +219,15 @@
 - What: Unit tests cover the new GM joining toggle service for auth, role checks, session binding, session existence, validation, transactional update/insert, and internal error fallback.
   Where: `tests/GmSessionJoiningServiceTest.php`.
   Evidence: PHPUnit suite asserts response codes/envelopes and expected DB interaction patterns across all major paths.
+
+- What: GM join-link rotation endpoint is now implemented at `POST /api/sessions/:session_id/join-link/rotate`.
+  Where: `web/index.php`, `src/Controller/GmSessionsController.php`, `src/Service/GmJoinLinkRotateService.php`, `config/services.php`.
+  Evidence: Route wiring invokes `rotateJoinLink()`; service is DI-registered and enforces session token auth + GM role + same-session binding.
+
+- What: Join-link rotation executes as a single transaction that revokes all active join tokens for the session and mints a new hashed join token.
+  Where: `src/Service/GmJoinLinkRotateService.php`.
+  Evidence: `transaction()` updates `session_join_tokens` (`join_token_revoked`, `join_token_updated`) and inserts one new active `session_join_tokens` row with SHA-256 hash + prefix.
+
+- What: Unit tests cover rotate join-link endpoint service behaviors including auth failures, role/session checks, session-not-found, successful revoke+mint, and transaction failure fallback.
+  Where: `tests/GmJoinLinkRotateServiceTest.php`.
+  Evidence: Tests assert response envelopes and DB interaction shape for `update()` + `insert()` inside transaction.

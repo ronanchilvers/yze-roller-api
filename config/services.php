@@ -11,6 +11,7 @@ use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Service\EventsPollService;
 use YZERoller\Api\Service\EventsSubmitService;
+use YZERoller\Api\Service\GmJoinLinkRotateService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 use YZERoller\Api\Service\JoinService;
 use YZERoller\Api\Service\SessionSnapshotService;
@@ -125,6 +126,19 @@ $container->set(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
             $container->get(RequestValidator::class)
+        );
+    }
+);
+
+// GM join-link rotate service (POST /api/sessions/:session_id/join-link/rotate)
+$container->set(
+    GmJoinLinkRotateService::class,
+    function () use ($container, $settings) {
+        return new GmJoinLinkRotateService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class),
+            $settings['site']['url']
         );
     }
 );
