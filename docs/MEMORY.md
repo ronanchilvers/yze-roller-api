@@ -40,9 +40,9 @@
   Where: `web/index.php` (`Flight::route("/api", function () { /* placeholder */ });`).
   Evidence: No endpoint handlers are registered for contract routes yet.
 
-- What: Database access is currently a single PDO service from settings and no repository/service layer exists yet.
-  Where: `config/services.php` (`$container->set(PDO::class, ...)`).
-  Evidence: `src/` is empty and container wiring only registers PDO.
+- What: Database access is currently a single `flight\database\SimplePdo` service from settings and no repository/service layer exists yet.
+  Where: `config/services.php` (`$container->set(SimplePdo::class, ...)`).
+  Evidence: `src/` is empty and container wiring only registers `SimplePdo`.
 
 - What: Environment configuration is loaded from `config/settings.php` with optional overrides from `.env.php`.
   Where: `config/settings.php`.
@@ -59,3 +59,15 @@
 - What: Database configuration uses `database.adapter` key consistently.
   Where: `config/settings.php`, `config/services.php`, `.env.php.dist`.
   Evidence: DSN wiring and config templates all reference `adapter`.
+
+- What: `flight\database\SimplePdo` supports high-level helpers (`fetchRow`, `fetchAll`, `fetchColumn`, `fetchPairs`, `insert`, `update`, `delete`, `runQuery`) and should be used as the primary DB abstraction for Task 1.
+  Where: `docs/knowledge/SimplePdo.md`, `config/services.php`.
+  Evidence: Service container registers `SimplePdo::class`; knowledge doc lists helper interface.
+
+- What: Transaction handling for server write paths should prefer `SimplePdo::transaction(callable)` with callback-scoped writes and rollback on exception.
+  Where: `docs/knowledge/SimplePdo.md` (Transactions), `docs/plans/server-side-implementation-outline.md` (Step S4), `docs/plans/multiplayer-api-contract-and-build-spec.md` Section 9.
+  Evidence: `SimplePdo` provides transaction wrapper; contract requires transactional guarantees for join/push/toggle/revoke/reset flows.
+
+- What: Query shape caveats for Task 1: `fetchRow` auto-applies `LIMIT 1`, and `runQuery` expands array parameters for `IN(?)` (empty array becomes `IN(NULL)`).
+  Where: `docs/knowledge/SimplePdo.md`.
+  Evidence: Documented runtime behavior affects auth lookups and list/revoke queries.
