@@ -79,3 +79,11 @@
 - What: PHPUnit harness and contract-focused unit tests exist for `Response`.
   Where: `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/ResponseTest.php`.
   Evidence: `vendor/bin/phpunit --configuration phpunit.xml.dist` passes with 8 tests and 16 assertions.
+
+- What: Shared bearer token utility now exists for auth middleware foundations.
+  Where: `src/Auth/BearerToken.php`.
+  Evidence: Provides `parseAuthorizationHeader()` and raw-binary SHA-256 `hashToken()` for DB `BINARY(32)` lookups.
+
+- What: Unit tests cover bearer parsing and token hashing behavior.
+  Where: `tests/BearerTokenTest.php`.
+  Evidence: Valid/invalid header parsing, case-insensitive bearer scheme, binary hash length/format, and empty-token exception are verified.
