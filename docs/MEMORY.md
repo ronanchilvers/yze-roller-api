@@ -243,3 +243,19 @@
 - What: Unit tests cover GM players list service for auth/role/session checks, session-not-found handling, payload mapping, and internal error fallback.
   Where: `tests/GmPlayersListServiceTest.php`.
   Evidence: Tests assert response envelopes and mapped output for active/revoked players including timestamp conversions and nullable fields.
+
+- What: GM player revoke endpoint is now implemented at `POST /api/gm/sessions/:session_id/players/:token_id/revoke` with idempotent semantics.
+  Where: `web/index.php`, `src/Controller/GmSessionsController.php`, `src/Service/GmPlayerRevokeService.php`, `config/services.php`.
+  Evidence: Route wiring invokes `revokePlayer()`; service is DI-registered and enforces session token auth + GM role + same-session binding.
+
+- What: Revoke flow is transactional and emits exactly one `leave` event on first revoke; repeat revoke returns success with `event_emitted=false`.
+  Where: `src/Service/GmPlayerRevokeService.php`.
+  Evidence: Service uses `transaction()` with `SELECT ... FOR UPDATE` on target player token, updates revoke fields when first revoked, and inserts `leave` event payload `{token_id, display_name, reason:\"revoked\"}` only once.
+
+- What: Request validator now has a reusable strict empty-object payload guard used for no-body mutation endpoints.
+  Where: `src/Validation/RequestValidator.php`.
+  Evidence: `validateEmptyObjectPayload()` accepts only empty object payload and returns `VALIDATION_ERROR` for non-empty bodies.
+
+- What: Unit tests cover GM revoke service for auth/role/session checks, path/body validation, missing resources, idempotency, first-revoke leave-event emission, and internal error fallback.
+  Where: `tests/GmPlayerRevokeServiceTest.php`, `tests/RequestValidatorTest.php`.
+  Evidence: PHPUnit cases assert response envelopes and DB interaction patterns for both first and repeated revoke flows.

@@ -153,6 +153,25 @@ final class RequestValidator
         return $body['joining_enabled'];
     }
 
+    public function validateEmptyObjectPayload(mixed $body): Response|null
+    {
+        if (!is_array($body)) {
+            return $this->validationError(
+                'Request body must be a JSON object.',
+                ['field' => 'body']
+            );
+        }
+
+        if ($body !== []) {
+            return $this->validationError(
+                'Request body must be an empty object.',
+                ['field' => 'body']
+            );
+        }
+
+        return null;
+    }
+
     /**
      * @param array<string,mixed> $body
      *

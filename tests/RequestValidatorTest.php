@@ -143,6 +143,22 @@ final class RequestValidatorTest extends TestCase
         self::assertSame(Response::ERROR_VALIDATION_ERROR, $notBool->data()['error']['code']);
     }
 
+    public function testValidateEmptyObjectPayloadAcceptsEmptyArray(): void
+    {
+        $validator = new RequestValidator();
+
+        self::assertNull($validator->validateEmptyObjectPayload([]));
+    }
+
+    public function testValidateEmptyObjectPayloadRejectsNonEmptyArray(): void
+    {
+        $validator = new RequestValidator();
+
+        $response = $validator->validateEmptyObjectPayload(['x' => 1]);
+        self::assertInstanceOf(Response::class, $response);
+        self::assertSame(Response::ERROR_VALIDATION_ERROR, $response->data()['error']['code']);
+    }
+
     public function testValidateEventSubmitPayloadAcceptsRoll(): void
     {
         $validator = new RequestValidator();

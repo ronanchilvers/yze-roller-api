@@ -12,6 +12,7 @@ use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Service\EventsPollService;
 use YZERoller\Api\Service\EventsSubmitService;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
+use YZERoller\Api\Service\GmPlayerRevokeService;
 use YZERoller\Api\Service\GmPlayersListService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 use YZERoller\Api\Service\JoinService;
@@ -149,6 +150,18 @@ $container->set(
     GmPlayersListService::class,
     function () use ($container) {
         return new GmPlayersListService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
+        );
+    }
+);
+
+// GM player revoke service (POST /api/gm/sessions/:session_id/players/:token_id/revoke)
+$container->set(
+    GmPlayerRevokeService::class,
+    function () use ($container) {
+        return new GmPlayerRevokeService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
             $container->get(RequestValidator::class)
