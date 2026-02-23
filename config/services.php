@@ -9,6 +9,8 @@ declare(strict_types=1);
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
+use YZERoller\Api\Security\FileJoinRateLimiter;
+use YZERoller\Api\Security\JoinRateLimiter;
 use YZERoller\Api\Service\EventsPollService;
 use YZERoller\Api\Service\EventsSubmitService;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
@@ -62,6 +64,18 @@ $container->set(
     }
 );
 
+// Join rate limiter helper (process-shared via local file lock/state)
+$container->set(
+    JoinRateLimiter::class,
+    function () {
+        return new FileJoinRateLimiter(
+            sys_get_temp_dir() . '/yze_roller_api_join_rate_limit.json',
+            10,
+            60
+        );
+    }
+);
+
 // Session bootstrap service (POST /api/sessions)
 $container->set(
     SessionBootstrapService::class,
@@ -81,7 +95,8 @@ $container->set(
         return new JoinService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(RequestValidator::class),
+            $container->get(JoinRateLimiter::class)
         );
     }
 );

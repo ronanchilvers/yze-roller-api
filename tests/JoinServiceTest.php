@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
+use YZERoller\Api\Security\JoinRateLimiter;
 use YZERoller\Api\Service\JoinService;
 use YZERoller\Api\Validation\RequestValidator;
 
@@ -96,6 +97,41 @@ final class JoinServiceTest extends TestCase
 
         self::assertSame(Response::STATUS_FORBIDDEN, $response->code());
         self::assertSame(Response::ERROR_JOIN_DISABLED, $response->data()['error']['code']);
+    }
+
+    public function testJoinReturnsRateLimitedWhenLimiterRejectsRequest(): void
+    {
+        $lookupDb = $this->createLookupDbMock();
+        $lookupDb->expects(self::once())
+            ->method('fetchRow')
+            ->with(self::stringContains('FROM session_join_tokens'))
+            ->willReturn(new Collection([
+                'join_token_id' => 22,
+                'join_token_session_id' => 7,
+                'join_token_hash' => hash('sha256', 'join-token', true),
+                'join_token_prefix' => 'joinprefix12',
+                'join_token_revoked' => null,
+                'join_token_created' => '2026-02-22 10:00:00.000000',
+                'join_token_updated' => '2026-02-22 10:00:00.000000',
+                'join_token_last_used' => null,
+            ]));
+
+        $joinDb = $this->createJoinDbMock();
+        $joinDb->expects(self::never())->method('fetchRow');
+        $joinDb->expects(self::never())->method('transaction');
+
+        $rateLimiter = $this->createJoinRateLimiterMock();
+        $rateLimiter->expects(self::once())
+            ->method('allow')
+            ->with(self::stringContains('join:22:'))
+            ->willReturn(false);
+
+        $service = $this->createService($lookupDb, $joinDb, null, null, $rateLimiter);
+
+        $response = $service->join('Bearer join-token', ['display_name' => 'Alice'], '127.0.0.1');
+
+        self::assertSame(Response::STATUS_TOO_MANY_REQUESTS, $response->code());
+        self::assertSame(Response::ERROR_RATE_LIMITED, $response->data()['error']['code']);
     }
 
     public function testJoinReturnsCreatedPayloadOnSuccess(): void
@@ -232,7 +268,8 @@ final class JoinServiceTest extends TestCase
         SimplePdo $lookupDb,
         SimplePdo $joinDb,
         ?callable $tokenGenerator = null,
-        ?callable $nowProvider = null
+        ?callable $nowProvider = null,
+        ?JoinRateLimiter $rateLimiter = null
     ): JoinService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
 
@@ -240,9 +277,28 @@ final class JoinServiceTest extends TestCase
             $joinDb,
             $authGuard,
             new RequestValidator(),
+            $rateLimiter ?? $this->createAllowingJoinRateLimiter(),
             $tokenGenerator,
             $nowProvider
         );
+    }
+
+    private function createAllowingJoinRateLimiter(): JoinRateLimiter
+    {
+        return new class implements JoinRateLimiter {
+            public function allow(string $key): bool
+            {
+                return true;
+            }
+        };
+    }
+
+    private function createJoinRateLimiterMock(): JoinRateLimiter
+    {
+        return $this->getMockBuilder(JoinRateLimiter::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['allow'])
+            ->getMock();
     }
 
     private function createLookupDbMock(): SimplePdo

@@ -19,8 +19,9 @@ final class JoinController extends Base
         $request = Flight::request();
         $data = $request->data->getData();
         $authorizationHeader = Request::getHeader('Authorization', '');
+        $clientIp = is_string($request->ip ?? null) ? $request->ip : null;
 
-        $response = $this->joinService->join($authorizationHeader, $data);
+        $response = $this->joinService->join($authorizationHeader, $data, $clientIp);
         $this->sendResponse($response);
     }
 }

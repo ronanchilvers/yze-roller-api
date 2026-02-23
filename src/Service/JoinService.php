@@ -12,6 +12,7 @@ use Throwable;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\BearerToken;
 use YZERoller\Api\Response;
+use YZERoller\Api\Security\JoinRateLimiter;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class JoinService
@@ -34,6 +35,7 @@ final class JoinService
         private readonly SimplePdo $db,
         private readonly AuthGuard $authGuard,
         private readonly RequestValidator $validator,
+        private readonly JoinRateLimiter $joinRateLimiter,
         ?callable $tokenGenerator = null,
         ?callable $nowProvider = null
     ) {
@@ -48,7 +50,7 @@ final class JoinService
     /**
      * @param array<string,mixed> $body
      */
-    public function join(?string $authorizationHeader, array $body): Response
+    public function join(?string $authorizationHeader, array $body, ?string $clientIp = null): Response
     {
         $joinTokenRow = $this->authGuard->requireJoinToken($authorizationHeader);
         if ($joinTokenRow instanceof Response) {
@@ -61,7 +63,23 @@ final class JoinService
         }
 
         $sessionId = (int) ($joinTokenRow['join_token_session_id'] ?? 0);
-        if ($sessionId <= 0 || !$this->isJoiningEnabled($sessionId)) {
+        if ($sessionId <= 0) {
+            return (new Response())->withError(
+                Response::ERROR_TOKEN_INVALID,
+                'Authorization token is invalid.',
+                Response::STATUS_UNAUTHORIZED
+            );
+        }
+
+        if (!$this->isJoinRequestAllowed($joinTokenRow, $sessionId, $clientIp)) {
+            return (new Response())->withError(
+                Response::ERROR_RATE_LIMITED,
+                'Join rate limit exceeded. Please retry shortly.',
+                Response::STATUS_TOO_MANY_REQUESTS
+            );
+        }
+
+        if (!$this->isJoiningEnabled($sessionId)) {
             return (new Response())->withError(
                 Response::ERROR_JOIN_DISABLED,
                 'Joining is currently disabled for this session.',
@@ -123,6 +141,23 @@ final class JoinService
         return (new Response())
             ->withCode(Response::STATUS_CREATED)
             ->withData($payload);
+    }
+
+    /**
+     * @param array<string,mixed> $joinTokenRow
+     */
+    private function isJoinRequestAllowed(array $joinTokenRow, int $sessionId, ?string $clientIp): bool
+    {
+        $joinTokenId = (int) ($joinTokenRow['join_token_id'] ?? 0);
+        $subject = $joinTokenId > 0 ? (string) $joinTokenId : (string) $sessionId;
+        $ip = trim((string) ($clientIp ?? 'unknown'));
+        if ($ip === '') {
+            $ip = 'unknown';
+        }
+
+        $key = 'join:' . $subject . ':' . $ip;
+
+        return $this->joinRateLimiter->allow($key);
     }
 
     private function isJoiningEnabled(int $sessionId): bool
