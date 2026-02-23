@@ -71,3 +71,11 @@
 - What: Query shape caveats for Task 1: `fetchRow` auto-applies `LIMIT 1`, and `runQuery` expands array parameters for `IN(?)` (empty array becomes `IN(NULL)`).
   Where: `docs/knowledge/SimplePdo.md`.
   Evidence: Documented runtime behavior affects auth lookups and list/revoke queries.
+
+- What: `Response` now emits contract-compliant error envelopes and uses explicit `204` behavior (no implicit status switching).
+  Where: `src/Response.php`.
+  Evidence: Non-2xx `data()` returns `{ "error": { "code", "message", "details?" } }`; `withNoContent()` controls `204`; success responses default to JSON object payloads.
+
+- What: PHPUnit harness and contract-focused unit tests exist for `Response`.
+  Where: `phpunit.xml.dist`, `tests/bootstrap.php`, `tests/ResponseTest.php`.
+  Evidence: `vendor/bin/phpunit --configuration phpunit.xml.dist` passes with 8 tests and 16 assertions.
