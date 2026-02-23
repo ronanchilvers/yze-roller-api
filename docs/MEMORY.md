@@ -259,3 +259,15 @@
 - What: Unit tests cover GM revoke service for auth/role/session checks, path/body validation, missing resources, idempotency, first-revoke leave-event emission, and internal error fallback.
   Where: `tests/GmPlayerRevokeServiceTest.php`, `tests/RequestValidatorTest.php`.
   Evidence: PHPUnit cases assert response envelopes and DB interaction patterns for both first and repeated revoke flows.
+
+- What: GM scene strain reset endpoint is now implemented at `POST /api/gm/sessions/:session_id/reset_scene_strain`.
+  Where: `web/index.php`, `src/Controller/GmSessionsController.php`, `src/Service/GmSceneStrainResetService.php`, `config/services.php`.
+  Evidence: Route wiring invokes `resetSceneStrain()`; service is DI-registered and enforces session token auth + GM role + same-session binding.
+
+- What: Scene strain reset executes transactionally with row lock semantics and emits `strain_reset` event payload containing previous and new strain values.
+  Where: `src/Service/GmSceneStrainResetService.php`.
+  Evidence: Service uses `transaction()` with `SELECT ... FOR UPDATE` on `session_state(scene_strain)`, writes state to `'0'`, and inserts `events` row with payload `{previous_scene_strain, scene_strain:0}`.
+
+- What: Unit tests cover GM scene strain reset service for auth/role/session checks, path/body validation, missing resources, state-row update/insert branches, invalid stored-value fallback, and internal error fallback.
+  Where: `tests/GmSceneStrainResetServiceTest.php`.
+  Evidence: PHPUnit cases assert response envelopes, payload shape (`session_id`, `scene_strain`, `event_id`), and DB interaction patterns for each branch.

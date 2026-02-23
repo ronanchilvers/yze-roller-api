@@ -26,6 +26,7 @@ Flight::route('POST /api/sessions/@session_id/join-link/rotate', [GmSessionsCont
 Flight::route('GET /api/gm/sessions/@session_id/players', [GmSessionsController::class, 'listPlayers']);
 Flight::route('POST /api/gm/sessions/@session_id/players/@token_id/revoke', [GmSessionsController::class, 'revokePlayer']);
 Flight::route('POST /api/gm/sessions/@session_id/joining', [GmSessionsController::class, 'updateJoining']);
+Flight::route('POST /api/gm/sessions/@session_id/reset_scene_strain', [GmSessionsController::class, 'resetSceneStrain']);
 
 Flight::post('/api/join', [JoinController::class, 'create']);
 

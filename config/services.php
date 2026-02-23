@@ -14,6 +14,7 @@ use YZERoller\Api\Service\EventsSubmitService;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
 use YZERoller\Api\Service\GmPlayerRevokeService;
 use YZERoller\Api\Service\GmPlayersListService;
+use YZERoller\Api\Service\GmSceneStrainResetService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 use YZERoller\Api\Service\JoinService;
 use YZERoller\Api\Service\SessionSnapshotService;
@@ -162,6 +163,18 @@ $container->set(
     GmPlayerRevokeService::class,
     function () use ($container) {
         return new GmPlayerRevokeService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
+        );
+    }
+);
+
+// GM scene strain reset service (POST /api/gm/sessions/:session_id/reset_scene_strain)
+$container->set(
+    GmSceneStrainResetService::class,
+    function () use ($container) {
+        return new GmSceneStrainResetService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
             $container->get(RequestValidator::class)

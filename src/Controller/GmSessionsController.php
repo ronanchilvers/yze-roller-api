@@ -9,6 +9,7 @@ use flight\net\Request;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
 use YZERoller\Api\Service\GmPlayerRevokeService;
 use YZERoller\Api\Service\GmPlayersListService;
+use YZERoller\Api\Service\GmSceneStrainResetService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 
 final class GmSessionsController extends Base
@@ -17,7 +18,8 @@ final class GmSessionsController extends Base
         private readonly GmSessionJoiningService $gmSessionJoiningService,
         private readonly GmJoinLinkRotateService $gmJoinLinkRotateService,
         private readonly GmPlayersListService $gmPlayersListService,
-        private readonly GmPlayerRevokeService $gmPlayerRevokeService
+        private readonly GmPlayerRevokeService $gmPlayerRevokeService,
+        private readonly GmSceneStrainResetService $gmSceneStrainResetService
     ) {
     }
 
@@ -54,6 +56,16 @@ final class GmSessionsController extends Base
         $authorizationHeader = Request::getHeader('Authorization', '');
 
         $response = $this->gmPlayerRevokeService->revoke($authorizationHeader, $sessionId, $tokenId, $data);
+        $this->sendResponse($response);
+    }
+
+    public function resetSceneStrain(string $sessionId): void
+    {
+        $request = Flight::request();
+        $data = $request->data->getData();
+        $authorizationHeader = Request::getHeader('Authorization', '');
+
+        $response = $this->gmSceneStrainResetService->reset($authorizationHeader, $sessionId, $data);
         $this->sendResponse($response);
     }
 }
