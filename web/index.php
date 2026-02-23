@@ -17,7 +17,8 @@ Flight::registerContainerHandler([$container, 'get']);
 
 // Configure routing
 Flight::post('/api/sessions', [SessionsController::class, 'create']);
+Flight::route('/api/session', [SessionController::class, 'show']);
+
 Flight::post('/api/join', [JoinController::class, 'create']);
-Flight::get('/api/session', [SessionController::class, 'show']);
 
 Flight::start();

@@ -171,3 +171,7 @@
 - What: Unit tests cover snapshot success and key contract fallback/error rules.
   Where: `tests/SessionSnapshotServiceTest.php`.
   Evidence: Tests verify missing token, session-not-found, full success payload shape, and invalid-state/no-event fallback behavior.
+
+- What: Flight route registration for GET session snapshot must use `Flight::route('/api/session', ...)` (not `Flight::get(...)`), and path must be singular `/api/session`.
+  Where: `web/index.php`.
+  Evidence: `Flight::get()` in this stack is not a GET-route helper and led to missing-route behavior; corrected to route registration.
