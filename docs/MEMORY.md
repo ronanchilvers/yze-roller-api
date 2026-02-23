@@ -295,3 +295,11 @@
 - What: CORS policy supports allowlist origins, wildcard reflection, configurable methods/headers/exposed headers/credentials/max-age, and origin filtering.
   Where: `src/Http/CorsPolicy.php`, `tests/CorsPolicyTest.php`.
   Evidence: Resolver builds `Access-Control-*` headers only for allowed request origins; tests verify enabled state and header generation behavior.
+
+- What: MariaDB-backed transaction concurrency tests are now isolated in an opt-in PHPUnit config and do not run in the default suite.
+  Where: `phpunit.mariadb.xml`, `tests_mariadb/TransactionConcurrencyMariaDbTest.php`, `composer.json`, `tests_mariadb/README.md`.
+  Evidence: Default `phpunit.xml.dist` targets `tests/`; MariaDB tests run only via `composer test:mariadb` (or explicit `--configuration phpunit.mariadb.xml`) and skip when required env vars are unset.
+
+- What: Integration concurrency coverage now includes parallel revoke idempotency, parallel push strain accumulation, and reset-vs-push event persistence on real MariaDB.
+  Where: `tests_mariadb/TransactionConcurrencyMariaDbTest.php`.
+  Evidence: Tests use separate processes (`pcntl_fork`) with independent DB connections and assert event/state outcomes after concurrent operations.
