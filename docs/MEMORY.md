@@ -143,3 +143,31 @@
 - What: Unit tests cover session bootstrap behavior (validation failure, success payload + inserts, transaction error path).
   Where: `tests/SessionBootstrapServiceTest.php`.
   Evidence: Tests assert insert/write flow, token hash/prefix behavior, RFC3339 `created_at` formatting, and internal-error fallback.
+
+- What: `POST /api/join` is now wired and implemented via service + controller.
+  Where: `web/index.php`, `src/Controller/JoinController.php`, `src/Service/JoinService.php`.
+  Evidence: Route registration calls `JoinController::create`, which delegates to `JoinService` and emits contract-style `Response`.
+
+- What: Join flow now uses auth guard + display-name validation + joining-enabled state check + transactional player token mint/event write.
+  Where: `src/Service/JoinService.php`.
+  Evidence: Service enforces join token auth, validates `display_name`, checks `session_state.joining_enabled`, then transactionally inserts `session_tokens` (player), updates `session_join_tokens.last_used`, and inserts `join` event.
+
+- What: Controller response handling is now centralized in a shared base controller helper.
+  Where: `src/Controller/Base.php`, `src/Controller/SessionsController.php`, `src/Controller/JoinController.php`.
+  Evidence: Controllers now reuse `Base::sendResponse()` for consistent status/body handling.
+
+- What: Unit tests cover join service success and contract-relevant failure paths.
+  Where: `tests/JoinServiceTest.php`.
+  Evidence: Tests validate missing token, invalid display name, join disabled, successful join payload/event insertion, and transaction failure returning `INTERNAL_ERROR`.
+
+- What: `GET /api/session` snapshot endpoint is now wired through a dedicated snapshot service.
+  Where: `web/index.php`, `src/Controller/SessionController.php`, `src/Service/SessionSnapshotService.php`.
+  Evidence: Route registration calls `SessionController::show`, which delegates to `SessionSnapshotService` and emits contract-style `Response`.
+
+- What: Snapshot service behavior includes auth guard enforcement, session existence check, state parsing with safe fallbacks, latest-event cursor defaulting, and active player projection.
+  Where: `src/Service/SessionSnapshotService.php`.
+  Evidence: Service returns `SESSION_NOT_FOUND` (404) if missing; parses `joining_enabled` from `session_state` (`true` only), parses `scene_strain` non-negative integer string fallback `0`, and returns `latest_event_id=0` when no events exist.
+
+- What: Unit tests cover snapshot success and key contract fallback/error rules.
+  Where: `tests/SessionSnapshotServiceTest.php`.
+  Evidence: Tests verify missing token, session-not-found, full success payload shape, and invalid-state/no-event fallback behavior.

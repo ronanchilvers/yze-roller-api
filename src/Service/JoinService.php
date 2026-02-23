@@ -1,0 +1,169 @@
+<?php
+
+declare(strict_types=1);
+
+namespace YZERoller\Api\Service;
+
+use DateTimeImmutable;
+use DateTimeZone;
+use flight\database\SimplePdo;
+use flight\util\Collection;
+use Throwable;
+use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\BearerToken;
+use YZERoller\Api\Response;
+use YZERoller\Api\Validation\RequestValidator;
+
+final class JoinService
+{
+    /**
+     * @var callable():string
+     */
+    private $tokenGenerator;
+
+    /**
+     * @var callable():DateTimeImmutable
+     */
+    private $nowProvider;
+
+    /**
+     * @param callable():string|null $tokenGenerator
+     * @param callable():DateTimeImmutable|null $nowProvider
+     */
+    public function __construct(
+        private readonly SimplePdo $db,
+        private readonly AuthGuard $authGuard,
+        private readonly RequestValidator $validator,
+        ?callable $tokenGenerator = null,
+        ?callable $nowProvider = null
+    ) {
+        $this->tokenGenerator = $tokenGenerator ?? static function (): string {
+            return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        };
+        $this->nowProvider = $nowProvider ?? static function (): DateTimeImmutable {
+            return new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        };
+    }
+
+    /**
+     * @param array<string,mixed> $body
+     */
+    public function join(?string $authorizationHeader, array $body): Response
+    {
+        $joinTokenRow = $this->authGuard->requireJoinToken($authorizationHeader);
+        if ($joinTokenRow instanceof Response) {
+            return $joinTokenRow;
+        }
+
+        $displayName = $this->validator->validateDisplayName($body['display_name'] ?? null);
+        if ($displayName instanceof Response) {
+            return $displayName;
+        }
+
+        $sessionId = (int) ($joinTokenRow['join_token_session_id'] ?? 0);
+        if ($sessionId <= 0 || !$this->isJoiningEnabled($sessionId)) {
+            return (new Response())->withError(
+                Response::ERROR_JOIN_DISABLED,
+                'Joining is currently disabled for this session.',
+                Response::STATUS_FORBIDDEN
+            );
+        }
+
+        try {
+            /** @var array<string,mixed> $payload */
+            $payload = $this->db->transaction(function (SimplePdo $db) use ($sessionId, $displayName, $joinTokenRow): array {
+                $playerToken = $this->generateOpaqueToken();
+
+                $tokenId = (int) $db->insert('session_tokens', [
+                    'token_session_id' => $sessionId,
+                    'token_role' => 'player',
+                    'token_display_name' => $displayName,
+                    'token_hash' => BearerToken::hashToken($playerToken),
+                    'token_prefix' => substr($playerToken, 0, 12),
+                ]);
+
+                $db->update(
+                    'session_join_tokens',
+                    ['join_token_last_used' => $this->nowMysql()],
+                    'join_token_id = ?',
+                    [(int) $joinTokenRow['join_token_id']]
+                );
+
+                $db->insert('events', [
+                    'event_session_id' => $sessionId,
+                    'event_actor_token_id' => $tokenId,
+                    'event_type' => 'join',
+                    'event_payload_json' => json_encode(
+                        [
+                            'token_id' => $tokenId,
+                            'display_name' => $displayName,
+                        ],
+                        JSON_THROW_ON_ERROR
+                    ),
+                ]);
+
+                return [
+                    'session_id' => $sessionId,
+                    'player_token' => $playerToken,
+                    'player' => [
+                        'token_id' => $tokenId,
+                        'display_name' => $displayName,
+                        'role' => 'player',
+                    ],
+                ];
+            });
+        } catch (Throwable) {
+            return (new Response())->withError(
+                Response::ERROR_INTERNAL,
+                'Failed to join session.',
+                Response::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+
+        return (new Response())
+            ->withCode(Response::STATUS_CREATED)
+            ->withData($payload);
+    }
+
+    private function isJoiningEnabled(int $sessionId): bool
+    {
+        $row = $this->db->fetchRow(
+            'SELECT state_value FROM session_state WHERE state_session_id = ? AND state_name = ?',
+            [$sessionId, 'joining_enabled']
+        );
+        if ($row === null) {
+            return false;
+        }
+
+        $value = $this->extractStateValue($row);
+
+        // Contract fallback for invalid stored values is false.
+        return $value === 'true';
+    }
+
+    private function extractStateValue(Collection|array $row): ?string
+    {
+        if ($row instanceof Collection) {
+            $value = $row['state_value'] ?? null;
+        } else {
+            $value = $row['state_value'] ?? null;
+        }
+
+        return is_string($value) ? $value : null;
+    }
+
+    private function generateOpaqueToken(): string
+    {
+        $token = ($this->tokenGenerator)();
+        if ($token === '') {
+            throw new \RuntimeException('Token generator returned an empty token.');
+        }
+
+        return $token;
+    }
+
+    private function nowMysql(): string
+    {
+        return ($this->nowProvider)()->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
+    }
+}

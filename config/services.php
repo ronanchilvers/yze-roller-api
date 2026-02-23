@@ -9,6 +9,8 @@ declare(strict_types=1);
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
+use YZERoller\Api\Service\JoinService;
+use YZERoller\Api\Service\SessionSnapshotService;
 use YZERoller\Api\Service\SessionBootstrapService;
 use YZERoller\Api\Validation\RequestValidator;
 
@@ -61,6 +63,29 @@ $container->set(
             $container->get(SimplePdo::class),
             $container->get(RequestValidator::class),
             $settings['site']['url']
+        );
+    }
+);
+
+// Player self-join service (POST /api/join)
+$container->set(
+    JoinService::class,
+    function () use ($container) {
+        return new JoinService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
+        );
+    }
+);
+
+// Session snapshot service (GET /api/session)
+$container->set(
+    SessionSnapshotService::class,
+    function () use ($container) {
+        return new SessionSnapshotService(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class)
         );
     }
 );

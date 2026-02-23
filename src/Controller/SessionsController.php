@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace YZERoller\Api\Controller;
 
 use Flight;
-use YZERoller\Api\Response;
 use YZERoller\Api\Service\SessionBootstrapService;
 
-final class SessionsController
+final class SessionsController extends Base
 {
     public function __construct(private readonly SessionBootstrapService $sessionBootstrapService)
     {
@@ -21,19 +20,5 @@ final class SessionsController
 
         $response = $this->sessionBootstrapService->createSession($data);
         $this->sendResponse($response);
-    }
-
-    private function sendResponse(Response $response): void
-    {
-        $status = $response->code();
-        $data = $response->data();
-
-        if ($data === null) {
-            Flight::response()->status($status);
-
-            return;
-        }
-
-        Flight::json($data, $status);
     }
 }
