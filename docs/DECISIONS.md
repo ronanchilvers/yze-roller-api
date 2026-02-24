@@ -66,3 +66,18 @@ Update `schema/001_initial_schema.sql` to:
 ### Consequences
 - Schema is contract-aligned for state handling and ready for server implementation work.
 - MariaDB import failure risk from the `session_state` trailing comma is removed.
+
+## 2026-02-24 - Normalize configured CORS origins before allowlist matching
+
+### Context
+CORS headers were not being emitted for local development requests because configured origins can include a trailing slash (for example `http://localhost:5173/`), while browser `Origin` headers are sent without a trailing slash (`http://localhost:5173`).
+
+### Decision
+Normalize both configured allowlist origins and incoming request origins in `CorsPolicy` before comparison:
+- canonicalize scheme/host/port using `parse_url` when possible
+- ignore trailing slash/path artifacts in configured origins
+- continue to support wildcard (`*`) reflection and explicit `null` origin matching
+
+### Consequences
+- Common origin formatting mistakes no longer silently disable CORS.
+- Runtime behavior is more tolerant while still enforcing allowlist checks.

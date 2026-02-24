@@ -16,9 +16,9 @@ final class CorsPolicy
             return [];
         }
 
-        $allowedOrigins = self::normalizeStringList($config['origins'] ?? null);
-        $requestOrigin = trim((string) ($origin ?? ''));
-        if ($requestOrigin === '') {
+        $allowedOrigins = self::normalizeOrigins($config['origins'] ?? null);
+        $requestOrigin = self::normalizeOrigin($origin ?? '');
+        if ($requestOrigin === null) {
             return [];
         }
 
@@ -66,7 +66,7 @@ final class CorsPolicy
      */
     public static function isEnabled(array $config): bool
     {
-        $origins = self::normalizeStringList($config['origins'] ?? null);
+        $origins = self::normalizeOrigins($config['origins'] ?? null);
 
         return $origins !== [];
     }
@@ -81,6 +81,55 @@ final class CorsPolicy
         }
 
         return in_array($requestOrigin, $allowedOrigins, true) ? $requestOrigin : null;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private static function normalizeOrigins(mixed $value): array
+    {
+        $origins = self::normalizeStringList($value);
+        $normalized = [];
+        foreach ($origins as $origin) {
+            $canonical = self::normalizeOrigin($origin);
+            if ($canonical === null) {
+                continue;
+            }
+
+            $normalized[] = $canonical;
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private static function normalizeOrigin(string $origin): ?string
+    {
+        $trimmed = trim($origin);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if ($trimmed === '*' || $trimmed === 'null') {
+            return $trimmed;
+        }
+
+        $parts = parse_url($trimmed);
+        if (!is_array($parts)) {
+            return rtrim($trimmed, '/');
+        }
+
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        if (!is_string($scheme) || $scheme === '' || !is_string($host) || $host === '') {
+            return rtrim($trimmed, '/');
+        }
+
+        $normalized = strtolower($scheme) . '://' . strtolower($host);
+        if (isset($parts['port']) && is_int($parts['port'])) {
+            $normalized .= ':' . $parts['port'];
+        }
+
+        return $normalized;
     }
 
     /**
@@ -109,4 +158,3 @@ final class CorsPolicy
         return array_values(array_unique($normalized));
     }
 }
-

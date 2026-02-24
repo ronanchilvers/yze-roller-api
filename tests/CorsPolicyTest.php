@@ -59,5 +59,22 @@ final class CorsPolicyTest extends TestCase
 
         self::assertSame('https://sub.example.com', $headers['Access-Control-Allow-Origin']);
     }
-}
 
+    public function testResolveNormalizesConfiguredOriginsWithTrailingSlash(): void
+    {
+        $headers = CorsPolicy::resolve([
+            'origins' => ['http://localhost:5173/'],
+        ], 'http://localhost:5173');
+
+        self::assertSame('http://localhost:5173', $headers['Access-Control-Allow-Origin']);
+    }
+
+    public function testResolveIgnoresConfiguredOriginPathWhenMatching(): void
+    {
+        $headers = CorsPolicy::resolve([
+            'origins' => ['https://app.example.com/some-path'],
+        ], 'https://app.example.com');
+
+        self::assertSame('https://app.example.com', $headers['Access-Control-Allow-Origin']);
+    }
+}

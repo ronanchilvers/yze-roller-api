@@ -296,6 +296,10 @@
   Where: `src/Http/CorsPolicy.php`, `tests/CorsPolicyTest.php`.
   Evidence: Resolver builds `Access-Control-*` headers only for allowed request origins; tests verify enabled state and header generation behavior.
 
+- What: CORS allowlist matching now normalizes origins so trailing slashes or accidental path segments in config do not block valid requests.
+  Where: `src/Http/CorsPolicy.php` (`normalizeOrigin()`, `normalizeOrigins()`), `tests/CorsPolicyTest.php`.
+  Evidence: New tests assert configured `http://localhost:5173/` and `https://app.example.com/some-path` still match request origins and emit headers.
+
 - What: MariaDB-backed transaction concurrency tests are now isolated in an opt-in PHPUnit config and do not run in the default suite.
   Where: `phpunit.mariadb.xml`, `tests_mariadb/TransactionConcurrencyMariaDbTest.php`, `composer.json`, `tests_mariadb/README.md`.
   Evidence: Default `phpunit.xml.dist` targets `tests/`; MariaDB tests run only via `composer test:mariadb` (or explicit `--configuration phpunit.mariadb.xml`) and skip when required env vars are unset.
@@ -303,3 +307,7 @@
 - What: Integration concurrency coverage now includes parallel revoke idempotency, parallel push strain accumulation, and reset-vs-push event persistence on real MariaDB.
   Where: `tests_mariadb/TransactionConcurrencyMariaDbTest.php`.
   Evidence: Tests use separate processes (`pcntl_fork`) with independent DB connections and assert event/state outcomes after concurrent operations.
+
+- What: `POST /api/events` `push` responses always include a server-resolved `scene_strain` value; for `strain=false`, scene strain is read-only (no state write) but still embedded in both top-level response and event payload.
+  Where: `src/Service/EventsSubmitService.php`.
+  Evidence: Non-transaction push branch calls `readSceneStrain()` and inserts payload with `scene_strain`; `tests/EventsSubmitServiceTest::testSubmitPushWithoutStrainReturnsCreatedEventWithCurrentSceneStrain` verifies this shape.
