@@ -21,3 +21,6 @@ vendor
 
 # Configuration files
 .env.php
+.claude
+.codex
+.phpunit.cache/
