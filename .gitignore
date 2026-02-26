@@ -27,8 +27,15 @@ dist-ssr
 .codex
 .zed
 
+<<<<<<< Updated upstream
 # Environment variables
 .env
 .env.local
 .env.*.local
 .vite
+=======
+# Configuration files
+.env.php
+.claude
+>>>>>>> Stashed changes
+.phpunit.cache/
