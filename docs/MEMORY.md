@@ -308,6 +308,6 @@
   Where: `tests_mariadb/TransactionConcurrencyMariaDbTest.php`.
   Evidence: Tests use separate processes (`pcntl_fork`) with independent DB connections and assert event/state outcomes after concurrent operations.
 
-- What: `POST /api/events` `push` responses always include a server-resolved `scene_strain` value; for `strain=false`, scene strain is read-only (no state write) but still embedded in both top-level response and event payload.
-  Where: `src/Service/EventsSubmitService.php`.
-  Evidence: Non-transaction push branch calls `readSceneStrain()` and inserts payload with `scene_strain`; `tests/EventsSubmitServiceTest::testSubmitPushWithoutStrainReturnsCreatedEventWithCurrentSceneStrain` verifies this shape.
+- What: `POST /api/events` now increments `scene_strain` on every `push` by `payload.banes` regardless of the `payload.strain` boolean; `payload.strain` is preserved in the emitted event payload as the "with strain" marker.
+  Where: `src/Service/EventsSubmitService.php`, `tests/EventsSubmitServiceTest.php`.
+  Evidence: Push flow now always executes transactional `FOR UPDATE` read + state write, and tests verify incremented `scene_strain` for both `strain=false` and `strain=true`.

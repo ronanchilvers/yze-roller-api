@@ -116,7 +116,7 @@ final class EventsSubmitServiceTest extends TestCase
         self::assertArrayNotHasKey('scene_strain', $payload);
     }
 
-    public function testSubmitPushWithoutStrainReturnsCreatedEventWithCurrentSceneStrain(): void
+    public function testSubmitPushWithoutStrainReturnsCreatedEventWithIncrementedSceneStrain(): void
     {
         $lookupDb = $this->createLookupDbMock();
         $lookupDb->expects(self::once())
@@ -133,16 +133,32 @@ final class EventsSubmitServiceTest extends TestCase
             ]));
 
         $eventsDb = $this->createEventsDbMock();
-        $eventsDb->expects(self::exactly(2))
-            ->method('fetchRow')
-            ->willReturnCallback(function (string $sql, array $params): Collection {
-                if (str_contains($sql, 'FROM session_state')) {
-                    self::assertSame([7, 'scene_strain'], $params);
-                    return new Collection(['state_value' => '3']);
-                }
-                self::assertSame([200, 7], $params);
-                return new Collection(['event_created' => '2026-02-22 20:40:00.000000']);
-            });
+        $statement = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['fetch'])
+            ->getMock();
+        $statement->expects(self::once())
+            ->method('fetch')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn(['state_value' => '3']);
+
+        $eventsDb->expects(self::once())
+            ->method('runQuery')
+            ->with(
+                self::stringContains('FOR UPDATE'),
+                [7, 'scene_strain']
+            )
+            ->willReturn($statement);
+
+        $eventsDb->expects(self::once())
+            ->method('update')
+            ->with(
+                'session_state',
+                ['state_value' => '4'],
+                'state_session_id = ? AND state_name = ?',
+                [7, 'scene_strain']
+            )
+            ->willReturn(1);
 
         $eventsDb->expects(self::once())
             ->method('insert')
@@ -154,15 +170,25 @@ final class EventsSubmitServiceTest extends TestCase
                         'successes' => 2,
                         'banes' => 1,
                         'strain' => false,
-                        'scene_strain' => 3,
+                        'scene_strain' => 4,
                     ];
                 })
             )
             ->willReturn('200');
 
-        $eventsDb->expects(self::never())->method('transaction');
-        $eventsDb->expects(self::never())->method('runQuery');
-        $eventsDb->expects(self::never())->method('update');
+        $eventsDb->expects(self::once())
+            ->method('fetchRow')
+            ->with(
+                self::stringContains('SELECT event_created FROM events'),
+                [200, 7]
+            )
+            ->willReturn(new Collection(['event_created' => '2026-02-22 20:40:00.000000']));
+
+        $eventsDb->expects(self::once())
+            ->method('transaction')
+            ->willReturnCallback(function (callable $callback) use ($eventsDb) {
+                return $callback($eventsDb);
+            });
 
         $service = $this->createService($lookupDb, $eventsDb);
         $response = $service->submit(
@@ -173,8 +199,8 @@ final class EventsSubmitServiceTest extends TestCase
         self::assertSame(Response::STATUS_CREATED, $response->code());
         $payload = $response->data();
         self::assertIsArray($payload);
-        self::assertSame(3, $payload['scene_strain']);
-        self::assertSame(3, $payload['event']['payload']['scene_strain']);
+        self::assertSame(4, $payload['scene_strain']);
+        self::assertSame(4, $payload['event']['payload']['scene_strain']);
     }
 
     public function testSubmitPushWithStrainTrueUsesTransactionAndIncrementsByBanes(): void

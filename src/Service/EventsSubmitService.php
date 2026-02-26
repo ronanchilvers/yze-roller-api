@@ -79,68 +79,45 @@ final class EventsSubmitService
             // push
             /** @var bool $strain */
             $strain = $payload['strain'];
-            if ($strain) {
-                $pushResult = $this->db->transaction(function (SimplePdo $db) use ($sessionId, $tokenId, $payload): array {
-                    $currentSceneStrain = $this->readSceneStrainForUpdate($db, $sessionId);
-                    $banes = (int) $payload['banes'];
-                    $newSceneStrain = $currentSceneStrain + $banes;
-                    $this->writeSceneStrain($db, $sessionId, $newSceneStrain);
+            $pushResult = $this->db->transaction(function (SimplePdo $db) use ($sessionId, $tokenId, $payload, $strain): array {
+                $currentSceneStrain = $this->readSceneStrainForUpdate($db, $sessionId);
+                $banes = (int) $payload['banes'];
+                $newSceneStrain = $currentSceneStrain + $banes;
+                $this->writeSceneStrain($db, $sessionId, $newSceneStrain);
 
-                    $eventPayload = [
-                        'successes' => (int) $payload['successes'],
-                        'banes' => $banes,
-                        'strain' => true,
-                        'scene_strain' => $newSceneStrain,
-                    ];
+                $eventPayload = [
+                    'successes' => (int) $payload['successes'],
+                    'banes' => $banes,
+                    'strain' => $strain,
+                    'scene_strain' => $newSceneStrain,
+                ];
 
-                    $eventInsert = $this->insertEvent(
-                        $sessionId,
-                        $tokenId,
-                        'push',
-                        $eventPayload,
-                        $db
-                    );
-
-                    return [
-                        'event_id' => $eventInsert['event_id'],
-                        'event_created' => $eventInsert['event_created'],
-                        'event_payload' => $eventPayload,
-                        'scene_strain' => $newSceneStrain,
-                    ];
-                });
-
-                return $this->createdEventResponse(
-                    sessionId: $sessionId,
-                    eventId: $pushResult['event_id'],
-                    eventType: 'push',
-                    eventCreated: $pushResult['event_created'],
-                    actorTokenId: $tokenId,
-                    actorDisplayName: $sessionTokenRow['token_display_name'] ?? null,
-                    actorRole: (string) ($sessionTokenRow['token_role'] ?? ''),
-                    eventPayload: $pushResult['event_payload'],
-                    sceneStrain: $pushResult['scene_strain']
+                $eventInsert = $this->insertEvent(
+                    $sessionId,
+                    $tokenId,
+                    'push',
+                    $eventPayload,
+                    $db
                 );
-            }
 
-            $currentSceneStrain = $this->readSceneStrain($this->db, $sessionId);
-            $eventPayload = [
-                'successes' => (int) $payload['successes'],
-                'banes' => (int) $payload['banes'],
-                'strain' => false,
-                'scene_strain' => $currentSceneStrain,
-            ];
-            $eventInsert = $this->insertEvent($sessionId, $tokenId, 'push', $eventPayload);
+                return [
+                    'event_id' => $eventInsert['event_id'],
+                    'event_created' => $eventInsert['event_created'],
+                    'event_payload' => $eventPayload,
+                    'scene_strain' => $newSceneStrain,
+                ];
+            });
 
             return $this->createdEventResponse(
                 sessionId: $sessionId,
-                eventId: $eventInsert['event_id'],
+                eventId: $pushResult['event_id'],
                 eventType: 'push',
-                eventCreated: $eventInsert['event_created'],
+                eventCreated: $pushResult['event_created'],
                 actorTokenId: $tokenId,
                 actorDisplayName: $sessionTokenRow['token_display_name'] ?? null,
                 actorRole: (string) ($sessionTokenRow['token_role'] ?? ''),
-                eventPayload: $eventPayload,
-                sceneStrain: $currentSceneStrain
+                eventPayload: $pushResult['event_payload'],
+                sceneStrain: $pushResult['scene_strain']
             );
         } catch (Throwable) {
             return (new Response())->withError(
@@ -188,16 +165,6 @@ final class EventsSubmitService
             'event_created' => $eventCreated,
             'event_payload' => $eventPayload,
         ];
-    }
-
-    private function readSceneStrain(SimplePdo $db, int $sessionId): int
-    {
-        $row = $db->fetchRow(
-            'SELECT state_value FROM session_state WHERE state_session_id = ? AND state_name = ?',
-            [$sessionId, 'scene_strain']
-        );
-
-        return $this->parseSceneStrainValue($row['state_value'] ?? null);
     }
 
     private function readSceneStrainForUpdate(SimplePdo $db, int $sessionId): int

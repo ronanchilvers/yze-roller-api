@@ -81,3 +81,17 @@ Normalize both configured allowlist origins and incoming request origins in `Cor
 ### Consequences
 - Common origin formatting mistakes no longer silently disable CORS.
 - Runtime behavior is more tolerant while still enforcing allowlist checks.
+
+## 2026-02-24 - Push events always increment scene strain by banes
+
+### Context
+Gameplay semantics were updated so that every submitted `push` contributes to scene strain, while still retaining whether the push was declared "with strain" in event data.
+
+### Decision
+Update `POST /api/events` push handling to:
+- always lock and update `session_state.scene_strain` transactionally by adding `payload.banes`
+- preserve the incoming boolean `payload.strain` on the emitted `push` event payload as the "with strain" marker
+
+### Consequences
+- `push` with `strain=false` now mutates scene strain the same as `strain=true`.
+- Event consumers continue to receive `payload.strain` and server-resolved `payload.scene_strain`, so client event shape remains unchanged.
