@@ -1,18 +1,10 @@
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-loglevel.log*
+.phpunit.cache
 
 # Dependencies
 vendor
-node_modules
-dist
-dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -27,15 +19,8 @@ dist-ssr
 .codex
 .zed
 
-<<<<<<< Updated upstream
-# Environment variables
-.env
-.env.local
-.env.*.local
-.vite
-=======
 # Configuration files
 .env.php
 .claude
->>>>>>> Stashed changes
+.codex
 .phpunit.cache/

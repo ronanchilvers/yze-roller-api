@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="tests/bootstrap.php" cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="mariadb">
+            <directory>tests_mariadb</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
+

@@ -4,36 +4,37 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a447809b7d953fdf20577ed60e3f7a48",
+    "content-hash": "98deb857af0464e0ca10850832801b63",
     "packages": [
         {
-            "name": "flightphp/active-record",
-            "version": "v0.7.0",
+            "name": "flightphp/container",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/flightphp/active-record.git",
-                "reference": "a1797e848f17b524c9b928e370f2af4cdd0d2366"
+                "url": "https://github.com/flightphp/container.git",
+                "reference": "ebaf18426b289217b49c0a0067668a9f2082edd5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/flightphp/active-record/zipball/a1797e848f17b524c9b928e370f2af4cdd0d2366",
-                "reference": "a1797e848f17b524c9b928e370f2af4cdd0d2366",
+                "url": "https://api.github.com/repos/flightphp/container/zipball/ebaf18426b289217b49c0a0067668a9f2082edd5",
+                "reference": "ebaf18426b289217b49c0a0067668a9f2082edd5",
                 "shasum": ""
             },
             "require": {
-                "php": ">=7.4"
+                "php": ">=7.4",
+                "psr/container": "^2.0"
             },
             "require-dev": {
-                "ext-pdo_sqlite": "*",
-                "flightphp/runway": "^0.2 || ^1.0",
-                "phpunit/phpunit": "^9.0",
-                "rregeer/phpunit-coverage-check": "^0.3.1",
-                "squizlabs/php_codesniffer": "^3.8"
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^9.6",
+                "rector/rector": "^2.0"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "flight\\": "src/"
+                    "flight\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -42,34 +43,16 @@
             ],
             "authors": [
                 {
-                    "name": "Lloyd Zhou",
-                    "email": "lloydzhou@qq.com",
-                    "homepage": "https://lloydzhou.github.io/",
-                    "role": "Original Developer"
-                },
-                {
-                    "name": "n0nag0n",
-                    "email": "n0nag0n@sky-9.com",
-                    "role": "Maintainer"
+                    "name": "fadrian06",
+                    "email": "franyeradriansanchez@gmail.com"
                 }
             ],
-            "description": "Micro Active Record library in PHP, support chain calls, events, and relations.",
-            "homepage": "https://docs.flightphp.com",
-            "keywords": [
-                "Active Record",
-                "Simple",
-                "database",
-                "lite",
-                "micro",
-                "orm",
-                "pdo",
-                "relation"
-            ],
+            "description": "FlightPHP Dependency Injection Container",
             "support": {
-                "issues": "https://github.com/flightphp/active-record/issues",
-                "source": "https://github.com/flightphp/active-record/tree/v0.7.0"
+                "issues": "https://github.com/flightphp/container/issues",
+                "source": "https://github.com/flightphp/container/tree/v1.3.0"
             },
-            "time": "2025-12-21T15:49:00+00:00"
+            "time": "2025-04-07T03:30:45+00:00"
         },
         {
             "name": "flightphp/core",
@@ -145,6 +128,59 @@
                 "source": "https://github.com/flightphp/core/tree/v3.18.0"
             },
             "time": "2026-01-15T01:44:32+00:00"
+        },
+        {
+            "name": "psr/container",
+            "version": "2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/container.git",
+                "reference": "c71ecc56dfe541dbd90c5360474fbc405f8d5963"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/container/zipball/c71ecc56dfe541dbd90c5360474fbc405f8d5963",
+                "reference": "c71ecc56dfe541dbd90c5360474fbc405f8d5963",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Container\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common Container Interface (PHP FIG PSR-11)",
+            "homepage": "https://github.com/php-fig/container",
+            "keywords": [
+                "PSR-11",
+                "container",
+                "container-interface",
+                "container-interop",
+                "psr"
+            ],
+            "support": {
+                "issues": "https://github.com/php-fig/container/issues",
+                "source": "https://github.com/php-fig/container/tree/2.0.2"
+            },
+            "time": "2021-11-05T16:47:00+00:00"
         }
     ],
     "packages-dev": [

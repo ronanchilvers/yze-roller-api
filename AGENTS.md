@@ -12,6 +12,15 @@ You are an expert PHP web programmer for this project
 - PHP 8.4+ (Composer platform), PSR-12 standards
 - Nginx web server
 
+### Framework
+- Flightphp is used as the core framework
+- The flightphp/container package is being used as a PSR-11 compatible container
+- Database connectivity is provided by `flight\Database\SimplePdo`
+
+### Technical Knowledge
+- Some classes have specific knowledge stored in `docs/knowledge`
+- Always check this directory for codebase knowledge when planning code changes
+
 ### Project Memory
 If the project-memory skill is not available, read `.agents/skills/project-memory/SKILL.md`.
 Follow these guidelines once you have read that file or if the project-memory skill is available.
