@@ -11,6 +11,8 @@ use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\EventsPollService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\SystemClock;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class EventsPollServiceTest extends TestCase
@@ -211,7 +213,7 @@ final class EventsPollServiceTest extends TestCase
     {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
 
-        return new EventsPollService($eventsDb, $authGuard, new RequestValidator());
+        return new EventsPollService($eventsDb, $authGuard, new RequestValidator(), new DateTimeFormatter(new SystemClock()));
     }
 
     private function createLookupDbMock(): SimplePdo

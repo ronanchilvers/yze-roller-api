@@ -21,6 +21,11 @@
             "YZERoller\\Api\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "YZERoller\\Api\\Tests\\": "tests/"
+        }
+    },
     "config": {
         "process-timeout" : 0
     },

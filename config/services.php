@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 use flight\database\SimplePdo;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Security\FileJoinRateLimiter;
 use YZERoller\Api\Security\JoinRateLimiter;
@@ -19,9 +20,18 @@ use YZERoller\Api\Service\GmPlayersListService;
 use YZERoller\Api\Service\GmSceneStrainResetService;
 use YZERoller\Api\Service\GmSessionJoiningService;
 use YZERoller\Api\Service\JoinService;
-use YZERoller\Api\Service\SessionSnapshotService;
 use YZERoller\Api\Service\SessionBootstrapService;
+use YZERoller\Api\Service\SessionSnapshotService;
+use YZERoller\Api\Support\Clock;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\JoinLinkBuilder;
+use YZERoller\Api\Support\OpaqueTokenGenerator;
+use YZERoller\Api\Support\SystemClock;
+use YZERoller\Api\Support\TokenGenerator;
 use YZERoller\Api\Validation\RequestValidator;
+
+/* @param $settings array */
+/* @param $container \flight\Container */
 
 // The SimplePdo database connection
 $container->set(
@@ -76,14 +86,60 @@ $container->set(
     }
 );
 
+// Clock (UTC system clock)
+$container->set(
+    Clock::class,
+    function () {
+        return new SystemClock();
+    }
+);
+
+// DateTime formatter
+$container->set(
+    DateTimeFormatter::class,
+    function () use ($container) {
+        return new DateTimeFormatter($container->get(Clock::class));
+    }
+);
+
+// Opaque token generator
+$container->set(
+    TokenGenerator::class,
+    function () {
+        return new OpaqueTokenGenerator();
+    }
+);
+
+// Join link builder
+$container->set(
+    JoinLinkBuilder::class,
+    function () use ($settings) {
+        return new JoinLinkBuilder($settings['site']['url']);
+    }
+);
+
+// GM session authorizer
+$container->set(
+    GmSessionAuthorizer::class,
+    function () use ($container) {
+        return new GmSessionAuthorizer(
+            $container->get(SimplePdo::class),
+            $container->get(AuthGuard::class),
+            $container->get(RequestValidator::class)
+        );
+    }
+);
+
 // Session bootstrap service (POST /api/sessions)
 $container->set(
     SessionBootstrapService::class,
-    function () use ($container, $settings) {
+    function () use ($container) {
         return new SessionBootstrapService(
             $container->get(SimplePdo::class),
             $container->get(RequestValidator::class),
-            $settings['site']['url']
+            $container->get(TokenGenerator::class),
+            $container->get(JoinLinkBuilder::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -96,7 +152,9 @@ $container->set(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
             $container->get(RequestValidator::class),
-            $container->get(JoinRateLimiter::class)
+            $container->get(JoinRateLimiter::class),
+            $container->get(TokenGenerator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -119,7 +177,8 @@ $container->set(
         return new EventsPollService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(RequestValidator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -131,7 +190,8 @@ $container->set(
         return new EventsSubmitService(
             $container->get(SimplePdo::class),
             $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(RequestValidator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -142,8 +202,9 @@ $container->set(
     function () use ($container) {
         return new GmSessionJoiningService(
             $container->get(SimplePdo::class),
-            $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(GmSessionAuthorizer::class),
+            $container->get(RequestValidator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -151,12 +212,13 @@ $container->set(
 // GM join-link rotate service (POST /api/sessions/:session_id/join-link/rotate)
 $container->set(
     GmJoinLinkRotateService::class,
-    function () use ($container, $settings) {
+    function () use ($container) {
         return new GmJoinLinkRotateService(
             $container->get(SimplePdo::class),
-            $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class),
-            $settings['site']['url']
+            $container->get(GmSessionAuthorizer::class),
+            $container->get(TokenGenerator::class),
+            $container->get(JoinLinkBuilder::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -167,8 +229,8 @@ $container->set(
     function () use ($container) {
         return new GmPlayersListService(
             $container->get(SimplePdo::class),
-            $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(GmSessionAuthorizer::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -179,8 +241,9 @@ $container->set(
     function () use ($container) {
         return new GmPlayerRevokeService(
             $container->get(SimplePdo::class),
-            $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(GmSessionAuthorizer::class),
+            $container->get(RequestValidator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );
@@ -191,8 +254,9 @@ $container->set(
     function () use ($container) {
         return new GmSceneStrainResetService(
             $container->get(SimplePdo::class),
-            $container->get(AuthGuard::class),
-            $container->get(RequestValidator::class)
+            $container->get(GmSessionAuthorizer::class),
+            $container->get(RequestValidator::class),
+            $container->get(DateTimeFormatter::class)
         );
     }
 );

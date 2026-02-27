@@ -11,9 +11,12 @@ use flight\util\Collection;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\GmSceneStrainResetService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Tests\Fixture\FixedClock;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmSceneStrainResetServiceTest extends TestCase
@@ -56,7 +59,7 @@ final class GmSceneStrainResetServiceTest extends TestCase
     public function testResetReturnsValidationErrorForInvalidPathOrBody(): void
     {
         $lookupDb = $this->createLookupDbMock();
-        $lookupDb->expects(self::exactly(2))
+        $lookupDb->expects(self::exactly(1))
             ->method('fetchRow')
             ->with(self::stringContains('FROM session_tokens'))
             ->willReturn($this->tokenRow(role: 'gm', sessionId: 7, tokenId: 99));
@@ -185,11 +188,9 @@ final class GmSceneStrainResetServiceTest extends TestCase
                 return $callback($resetDb);
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $resetDb, $nowProvider);
+        $service = $this->createService($lookupDb, $resetDb, $fixedTime);
         $response = $service->reset('Bearer gm-token', '7', []);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -241,11 +242,9 @@ final class GmSceneStrainResetServiceTest extends TestCase
                 return $callback($resetDb);
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $resetDb, $nowProvider);
+        $service = $this->createService($lookupDb, $resetDb, $fixedTime);
         $response = $service->reset('Bearer gm-token', '7', []);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -327,11 +326,9 @@ final class GmSceneStrainResetServiceTest extends TestCase
                 return $callback($resetDb);
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T13:14:15.987Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $resetDb, $nowProvider);
+        $service = $this->createService($lookupDb, $resetDb, $fixedTime);
         $response = $service->reset('Bearer gm-token', '7', []);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -369,15 +366,17 @@ final class GmSceneStrainResetServiceTest extends TestCase
     private function createService(
         SimplePdo $lookupDb,
         SimplePdo $resetDb,
-        ?callable $nowProvider = null
+        ?DateTimeImmutable $fixedTime = null
     ): GmSceneStrainResetService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
+        $authorizer = new GmSessionAuthorizer($resetDb, $authGuard, new RequestValidator());
+        $clock = $fixedTime !== null ? new FixedClock($fixedTime) : new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC')));
 
         return new GmSceneStrainResetService(
             $resetDb,
-            $authGuard,
+            $authorizer,
             new RequestValidator(),
-            $nowProvider
+            new DateTimeFormatter($clock)
         );
     }
 

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace YZERoller\Api\Service;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use flight\database\SimplePdo;
 use PDO;
 use Throwable;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Response;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\SessionStateParser;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class EventsSubmitService
@@ -18,7 +18,8 @@ final class EventsSubmitService
     public function __construct(
         private readonly SimplePdo $db,
         private readonly AuthGuard $authGuard,
-        private readonly RequestValidator $validator
+        private readonly RequestValidator $validator,
+        private readonly DateTimeFormatter $formatter
     ) {
     }
 
@@ -175,7 +176,7 @@ final class EventsSubmitService
         );
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        return $this->parseSceneStrainValue($row['state_value'] ?? null);
+        return SessionStateParser::parseSceneStrain($row['state_value'] ?? null);
     }
 
     private function writeSceneStrain(SimplePdo $db, int $sessionId, int $sceneStrain): void
@@ -194,15 +195,6 @@ final class EventsSubmitService
                 'state_value' => (string) $sceneStrain,
             ]);
         }
-    }
-
-    private function parseSceneStrainValue(mixed $value): int
-    {
-        if (!is_string($value) || preg_match('/^(0|[1-9]\d*)$/', $value) !== 1) {
-            return 0;
-        }
-
-        return (int) $value;
     }
 
     /**
@@ -224,7 +216,7 @@ final class EventsSubmitService
                 'id' => $eventId,
                 'type' => $eventType,
                 'session_id' => $sessionId,
-                'occurred_at' => $this->toRfc3339($eventCreated),
+                'occurred_at' => $this->formatter->toRfc3339($eventCreated),
                 'actor' => [
                     'token_id' => $actorTokenId,
                     'display_name' => is_string($actorDisplayName) ? $actorDisplayName : null,
@@ -243,21 +235,4 @@ final class EventsSubmitService
             ->withData($payload);
     }
 
-    private function toRfc3339(string $mysqlDateTime): string
-    {
-        if ($mysqlDateTime === '') {
-            return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
-        }
-
-        $utc = new DateTimeZone('UTC');
-        $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $mysqlDateTime, $utc);
-        if (!$date) {
-            $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $mysqlDateTime, $utc);
-        }
-        if (!$date) {
-            $date = new DateTimeImmutable('now', $utc);
-        }
-
-        return $date->setTimezone($utc)->format('Y-m-d\TH:i:s.v\Z');
-    }
 }

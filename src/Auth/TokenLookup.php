@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace YZERoller\Api\Auth;
 
 use flight\database\SimplePdo;
-use flight\util\Collection;
+use YZERoller\Api\Support\CollectionHelper;
 
 final class TokenLookup
 {
@@ -31,7 +31,7 @@ final class TokenLookup
             return null;
         }
 
-        $tokenRow = $this->toArray($row);
+        $tokenRow = CollectionHelper::toArray($row);
         $tokenRow['is_revoked'] = $tokenRow['join_token_revoked'] !== null;
 
         return $tokenRow;
@@ -55,23 +55,9 @@ final class TokenLookup
             return null;
         }
 
-        $tokenRow = $this->toArray($row);
+        $tokenRow = CollectionHelper::toArray($row);
         $tokenRow['is_revoked'] = $tokenRow['token_revoked'] !== null;
 
         return $tokenRow;
-    }
-
-    /**
-     * @param Collection|array<string,mixed> $row
-     *
-     * @return array<string,mixed>
-     */
-    private function toArray(Collection|array $row): array
-    {
-        if ($row instanceof Collection) {
-            return $row->getData();
-        }
-
-        return $row;
     }
 }

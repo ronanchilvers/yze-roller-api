@@ -10,9 +10,14 @@ use flight\database\SimplePdo;
 use flight\util\Collection;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\GmJoinLinkRotateService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\JoinLinkBuilder;
+use YZERoller\Api\Tests\Fixture\FixedClock;
+use YZERoller\Api\Tests\Fixture\FixedTokenGenerator;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmJoinLinkRotateServiceTest extends TestCase
@@ -168,12 +173,9 @@ final class GmJoinLinkRotateServiceTest extends TestCase
                 return null;
             });
 
-        $tokenGenerator = static fn (): string => $joinToken;
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T12:34:56.789Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T12:34:56.789Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $rotateDb, $tokenGenerator, $nowProvider);
+        $service = $this->createService($lookupDb, $rotateDb, $joinToken, $fixedTime);
         $response = $service->rotate('Bearer gm-token', '7');
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -211,18 +213,20 @@ final class GmJoinLinkRotateServiceTest extends TestCase
     private function createService(
         SimplePdo $lookupDb,
         SimplePdo $rotateDb,
-        ?callable $tokenGenerator = null,
-        ?callable $nowProvider = null
+        ?string $fixedToken = null,
+        ?DateTimeImmutable $fixedTime = null
     ): GmJoinLinkRotateService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
+        $authorizer = new GmSessionAuthorizer($rotateDb, $authGuard, new RequestValidator());
+        $tokenGenerator = $fixedToken !== null ? new FixedTokenGenerator($fixedToken) : new FixedTokenGenerator('default-token-for-test');
+        $clock = $fixedTime !== null ? new FixedClock($fixedTime) : new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC')));
 
         return new GmJoinLinkRotateService(
             $rotateDb,
-            $authGuard,
-            new RequestValidator(),
-            'https://example.com',
+            $authorizer,
             $tokenGenerator,
-            $nowProvider
+            new JoinLinkBuilder('https://example.com'),
+            new DateTimeFormatter($clock)
         );
     }
 

@@ -11,6 +11,10 @@ use flight\util\Collection;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\SessionBootstrapService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\JoinLinkBuilder;
+use YZERoller\Api\Tests\Fixture\FixedClock;
+use YZERoller\Api\Tests\Fixture\FixedTokenGenerator;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class SessionBootstrapServiceTest extends TestCase
@@ -23,7 +27,9 @@ final class SessionBootstrapServiceTest extends TestCase
         $service = new SessionBootstrapService(
             $db,
             new RequestValidator(),
-            'https://example.com'
+            new FixedTokenGenerator('dummy'),
+            new JoinLinkBuilder('https://example.com'),
+            new DateTimeFormatter(new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC'))))
         );
 
         $response = $service->createSession(['session_name' => '   ']);
@@ -64,20 +70,12 @@ final class SessionBootstrapServiceTest extends TestCase
                 return $callback($db);
             });
 
-        $tokens = ['gmOpaqueToken123', 'joinOpaqueToken456'];
-        $tokenGenerator = static function () use (&$tokens): string {
-            return array_shift($tokens);
-        };
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-22T20:30:00.000Z', new DateTimeZone('UTC'));
-        };
-
         $service = new SessionBootstrapService(
             $db,
             new RequestValidator(),
-            'https://example.com',
-            $tokenGenerator,
-            $nowProvider
+            new FixedTokenGenerator('gmOpaqueToken123', 'joinOpaqueToken456'),
+            new JoinLinkBuilder('https://example.com'),
+            new DateTimeFormatter(new FixedClock(new DateTimeImmutable('2026-02-22T20:30:00.000Z', new DateTimeZone('UTC'))))
         );
 
         $response = $service->createSession(['session_name' => '  Streetwise Night  ']);
@@ -127,7 +125,9 @@ final class SessionBootstrapServiceTest extends TestCase
         $service = new SessionBootstrapService(
             $db,
             new RequestValidator(),
-            'https://example.com'
+            new FixedTokenGenerator('dummy'),
+            new JoinLinkBuilder('https://example.com'),
+            new DateTimeFormatter(new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC'))))
         );
 
         $response = $service->createSession(['session_name' => 'Streetwise Night']);

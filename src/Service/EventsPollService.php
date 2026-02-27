@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace YZERoller\Api\Service;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use flight\database\SimplePdo;
 use flight\util\Collection;
 use Throwable;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Response;
+use YZERoller\Api\Support\CollectionHelper;
+use YZERoller\Api\Support\DateTimeFormatter;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class EventsPollService
@@ -18,7 +18,8 @@ final class EventsPollService
     public function __construct(
         private readonly SimplePdo $db,
         private readonly AuthGuard $authGuard,
-        private readonly RequestValidator $validator
+        private readonly RequestValidator $validator,
+        private readonly DateTimeFormatter $formatter
     ) {
     }
 
@@ -104,7 +105,7 @@ final class EventsPollService
      */
     private function mapEventRow(Collection|array $row): array
     {
-        $data = $this->toArray($row);
+        $data = CollectionHelper::toArray($row);
         $actorTokenId = $data['event_actor_token_id'] ?? null;
 
         $actor = null;
@@ -120,7 +121,7 @@ final class EventsPollService
             'id' => (int) ($data['event_id'] ?? 0),
             'type' => (string) ($data['event_type'] ?? ''),
             'session_id' => (int) ($data['event_session_id'] ?? 0),
-            'occurred_at' => $this->toRfc3339((string) ($data['event_created'] ?? '')),
+            'occurred_at' => $this->formatter->toRfc3339((string) ($data['event_created'] ?? '')),
             'actor' => $actor,
             'payload' => $this->decodePayload($data['event_payload_json'] ?? null),
         ];
@@ -145,35 +146,4 @@ final class EventsPollService
         return $decoded;
     }
 
-    private function toRfc3339(string $mysqlDateTime): string
-    {
-        if ($mysqlDateTime === '') {
-            return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
-        }
-
-        $utc = new DateTimeZone('UTC');
-        $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $mysqlDateTime, $utc);
-        if (!$date) {
-            $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $mysqlDateTime, $utc);
-        }
-        if (!$date) {
-            $date = new DateTimeImmutable('now', $utc);
-        }
-
-        return $date->setTimezone($utc)->format('Y-m-d\TH:i:s.v\Z');
-    }
-
-    /**
-     * @param Collection|array<string,mixed> $row
-     *
-     * @return array<string,mixed>
-     */
-    private function toArray(Collection|array $row): array
-    {
-        if ($row instanceof Collection) {
-            return $row->getData();
-        }
-
-        return $row;
-    }
 }

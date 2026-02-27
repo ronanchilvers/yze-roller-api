@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace YZERoller\Api\Service;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use flight\database\SimplePdo;
 use flight\util\Collection;
 use Throwable;
@@ -13,38 +11,21 @@ use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Auth\BearerToken;
 use YZERoller\Api\Response;
 use YZERoller\Api\Security\JoinRateLimiter;
+use YZERoller\Api\Support\CollectionHelper;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\TokenGenerator;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class JoinService
 {
-    /**
-     * @var callable():string
-     */
-    private $tokenGenerator;
-
-    /**
-     * @var callable():DateTimeImmutable
-     */
-    private $nowProvider;
-
-    /**
-     * @param callable():string|null $tokenGenerator
-     * @param callable():DateTimeImmutable|null $nowProvider
-     */
     public function __construct(
         private readonly SimplePdo $db,
         private readonly AuthGuard $authGuard,
         private readonly RequestValidator $validator,
         private readonly JoinRateLimiter $joinRateLimiter,
-        ?callable $tokenGenerator = null,
-        ?callable $nowProvider = null
+        private readonly TokenGenerator $tokenGenerator,
+        private readonly DateTimeFormatter $formatter
     ) {
-        $this->tokenGenerator = $tokenGenerator ?? static function (): string {
-            return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
-        };
-        $this->nowProvider = $nowProvider ?? static function (): DateTimeImmutable {
-            return new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        };
     }
 
     /**
@@ -90,7 +71,7 @@ final class JoinService
         try {
             /** @var array<string,mixed> $payload */
             $payload = $this->db->transaction(function (SimplePdo $db) use ($sessionId, $displayName, $joinTokenRow): array {
-                $playerToken = $this->generateOpaqueToken();
+                $playerToken = $this->tokenGenerator->generate();
 
                 $tokenId = (int) $db->insert('session_tokens', [
                     'token_session_id' => $sessionId,
@@ -102,7 +83,7 @@ final class JoinService
 
                 $db->update(
                     'session_join_tokens',
-                    ['join_token_last_used' => $this->nowMysql()],
+                    ['join_token_last_used' => $this->formatter->toMysqlDateTime()],
                     'join_token_id = ?',
                     [(int) $joinTokenRow['join_token_id']]
                 );
@@ -178,27 +159,8 @@ final class JoinService
 
     private function extractStateValue(Collection|array $row): ?string
     {
-        if ($row instanceof Collection) {
-            $value = $row['state_value'] ?? null;
-        } else {
-            $value = $row['state_value'] ?? null;
-        }
+        $value = CollectionHelper::toArray($row)['state_value'] ?? null;
 
         return is_string($value) ? $value : null;
-    }
-
-    private function generateOpaqueToken(): string
-    {
-        $token = ($this->tokenGenerator)();
-        if ($token === '') {
-            throw new \RuntimeException('Token generator returned an empty token.');
-        }
-
-        return $token;
-    }
-
-    private function nowMysql(): string
-    {
-        return ($this->nowProvider)()->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
     }
 }

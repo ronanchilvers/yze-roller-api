@@ -9,6 +9,8 @@ use flight\util\Collection;
 use Throwable;
 use YZERoller\Api\Auth\AuthGuard;
 use YZERoller\Api\Response;
+use YZERoller\Api\Support\CollectionHelper;
+use YZERoller\Api\Support\SessionStateParser;
 
 final class SessionSnapshotService
 {
@@ -72,19 +74,19 @@ final class SessionSnapshotService
             );
         }
 
-        $sessionData = $this->toArray($session);
+        $sessionData = CollectionHelper::toArray($session);
 
         $payload = [
             'session_id' => (int) ($sessionData['session_id'] ?? $sessionId),
             'session_name' => (string) ($sessionData['session_name'] ?? ''),
-            'joining_enabled' => $this->parseJoiningEnabled($states['joining_enabled'] ?? null),
+            'joining_enabled' => SessionStateParser::parseJoiningEnabled($states['joining_enabled'] ?? null),
             'role' => (string) ($sessionTokenRow['token_role'] ?? ''),
             'self' => [
                 'token_id' => (int) ($sessionTokenRow['token_id'] ?? 0),
                 'display_name' => $sessionTokenRow['token_display_name'] ?? null,
                 'role' => (string) ($sessionTokenRow['token_role'] ?? ''),
             ],
-            'scene_strain' => $this->parseSceneStrain($states['scene_strain'] ?? null),
+            'scene_strain' => SessionStateParser::parseSceneStrain($states['scene_strain'] ?? null),
             'latest_event_id' => $this->parseLatestEventId($latestEventRow),
             'players' => $this->mapPlayers($players),
         ];
@@ -94,27 +96,13 @@ final class SessionSnapshotService
             ->withData($payload);
     }
 
-    private function parseJoiningEnabled(mixed $value): bool
-    {
-        return is_string($value) && $value === 'true';
-    }
-
-    private function parseSceneStrain(mixed $value): int
-    {
-        if (!is_string($value) || preg_match('/^(0|[1-9]\d*)$/', $value) !== 1) {
-            return 0;
-        }
-
-        return (int) $value;
-    }
-
     private function parseLatestEventId(Collection|array|null $latestEventRow): int
     {
         if ($latestEventRow === null) {
             return 0;
         }
 
-        $row = $this->toArray($latestEventRow);
+        $row = CollectionHelper::toArray($latestEventRow);
         $value = $row['latest_event_id'] ?? null;
         if ($value === null) {
             return 0;
@@ -139,7 +127,7 @@ final class SessionSnapshotService
     private function mapPlayers(array $rows): array
     {
         return array_map(function (Collection|array $row): array {
-            $data = $this->toArray($row);
+            $data = CollectionHelper::toArray($row);
 
             return [
                 'token_id' => (int) ($data['token_id'] ?? 0),
@@ -149,17 +137,4 @@ final class SessionSnapshotService
         }, $rows);
     }
 
-    /**
-     * @param Collection|array<string,mixed> $row
-     *
-     * @return array<string,mixed>
-     */
-    private function toArray(Collection|array $row): array
-    {
-        if ($row instanceof Collection) {
-            return $row->getData();
-        }
-
-        return $row;
-    }
 }
