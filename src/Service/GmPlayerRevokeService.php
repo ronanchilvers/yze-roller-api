@@ -4,34 +4,22 @@ declare(strict_types=1);
 
 namespace YZERoller\Api\Service;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use flight\database\SimplePdo;
 use PDO;
 use Throwable;
-use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Response;
+use YZERoller\Api\Support\DateTimeFormatter;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmPlayerRevokeService
 {
-    /**
-     * @var callable():DateTimeImmutable
-     */
-    private $nowProvider;
-
-    /**
-     * @param callable():DateTimeImmutable|null $nowProvider
-     */
     public function __construct(
         private readonly SimplePdo $db,
-        private readonly AuthGuard $authGuard,
+        private readonly GmSessionAuthorizer $authorizer,
         private readonly RequestValidator $validator,
-        ?callable $nowProvider = null
+        private readonly DateTimeFormatter $formatter
     ) {
-        $this->nowProvider = $nowProvider ?? static function (): DateTimeImmutable {
-            return new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        };
     }
 
     /**
@@ -43,21 +31,6 @@ final class GmPlayerRevokeService
         mixed $tokenIdInput,
         array $body
     ): Response {
-        $sessionTokenRow = $this->authGuard->requireSessionToken($authorizationHeader);
-        if ($sessionTokenRow instanceof Response) {
-            return $sessionTokenRow;
-        }
-
-        $gmRoleError = $this->authGuard->requireGmRole($sessionTokenRow);
-        if ($gmRoleError instanceof Response) {
-            return $gmRoleError;
-        }
-
-        $sessionId = $this->validator->validatePositiveId($sessionIdInput, 'session_id');
-        if ($sessionId instanceof Response) {
-            return $sessionId;
-        }
-
         $tokenId = $this->validator->validatePositiveId($tokenIdInput, 'token_id');
         if ($tokenId instanceof Response) {
             return $tokenId;
@@ -68,38 +41,16 @@ final class GmPlayerRevokeService
             return $bodyValidation;
         }
 
-        $actorTokenId = (int) ($sessionTokenRow['token_id'] ?? 0);
-        $tokenSessionId = (int) ($sessionTokenRow['token_session_id'] ?? 0);
-        if ($tokenSessionId <= 0 || $actorTokenId <= 0) {
-            return (new Response())->withError(
-                Response::ERROR_TOKEN_INVALID,
-                'Authorization token is invalid.',
-                Response::STATUS_UNAUTHORIZED
-            );
+        $auth = $this->authorizer->authorize($authorizationHeader, $sessionIdInput);
+        if ($auth instanceof Response) {
+            return $auth;
         }
 
-        if ($tokenSessionId !== $sessionId) {
-            return (new Response())->withError(
-                Response::ERROR_ROLE_FORBIDDEN,
-                'GM token is not authorized for the requested session.',
-                Response::STATUS_FORBIDDEN
-            );
-        }
+        $sessionId = $auth['sessionId'];
+        $actorTokenId = $auth['actorTokenId'];
+        $nowMysql = $this->formatter->toMysqlDateTime();
 
         try {
-            $session = $this->db->fetchRow(
-                'SELECT session_id FROM sessions WHERE session_id = ?',
-                [$sessionId]
-            );
-            if ($session === null) {
-                return (new Response())->withError(
-                    Response::ERROR_SESSION_NOT_FOUND,
-                    'Session not found.',
-                    Response::STATUS_NOT_FOUND
-                );
-            }
-
-            $nowMysql = $this->nowMysql();
             $result = $this->db->transaction(
                 function (SimplePdo $db) use ($sessionId, $tokenId, $actorTokenId, $nowMysql): array {
                     $statement = $db->runQuery(
@@ -191,10 +142,4 @@ final class GmPlayerRevokeService
             ->withCode(Response::STATUS_OK)
             ->withData($payload);
     }
-
-    private function nowMysql(): string
-    {
-        return ($this->nowProvider)()->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
-    }
 }
-

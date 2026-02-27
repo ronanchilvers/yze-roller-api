@@ -11,9 +11,12 @@ use flight\util\Collection;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\GmSessionJoiningService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Tests\Fixture\FixedClock;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmSessionJoiningServiceTest extends TestCase
@@ -94,10 +97,7 @@ final class GmSessionJoiningServiceTest extends TestCase
     public function testUpdateJoiningReturnsValidationErrorForInvalidPayload(): void
     {
         $lookupDb = $this->createLookupDbMock();
-        $lookupDb->expects(self::once())
-            ->method('fetchRow')
-            ->with(self::stringContains('FROM session_tokens'))
-            ->willReturn($this->tokenRow(role: 'gm', sessionId: 7));
+        $lookupDb->expects(self::never())->method('fetchRow');
 
         $gmDb = $this->createGmDbMock();
         $gmDb->expects(self::never())->method('fetchRow');
@@ -186,11 +186,9 @@ final class GmSessionJoiningServiceTest extends TestCase
                 return null;
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T10:11:12.345Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T10:11:12.345Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $gmDb, $nowProvider);
+        $service = $this->createService($lookupDb, $gmDb, $fixedTime);
         $response = $service->updateJoining('Bearer gm-token', '7', ['joining_enabled' => false]);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -253,11 +251,9 @@ final class GmSessionJoiningServiceTest extends TestCase
                 return null;
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T10:11:12.345Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T10:11:12.345Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $gmDb, $nowProvider);
+        $service = $this->createService($lookupDb, $gmDb, $fixedTime);
         $response = $service->updateJoining('Bearer gm-token', '7', ['joining_enabled' => true]);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -295,15 +291,17 @@ final class GmSessionJoiningServiceTest extends TestCase
     private function createService(
         SimplePdo $lookupDb,
         SimplePdo $gmDb,
-        ?callable $nowProvider = null
+        ?DateTimeImmutable $fixedTime = null
     ): GmSessionJoiningService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
+        $authorizer = new GmSessionAuthorizer($gmDb, $authGuard, new RequestValidator());
+        $clock = $fixedTime !== null ? new FixedClock($fixedTime) : new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC')));
 
         return new GmSessionJoiningService(
             $gmDb,
-            $authGuard,
+            $authorizer,
             new RequestValidator(),
-            $nowProvider
+            new DateTimeFormatter($clock)
         );
     }
 

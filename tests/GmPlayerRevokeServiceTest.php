@@ -11,9 +11,12 @@ use flight\util\Collection;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\GmPlayerRevokeService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Tests\Fixture\FixedClock;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmPlayerRevokeServiceTest extends TestCase
@@ -56,7 +59,7 @@ final class GmPlayerRevokeServiceTest extends TestCase
     public function testRevokeReturnsValidationErrorForInvalidPathParams(): void
     {
         $lookupDb = $this->createLookupDbMock();
-        $lookupDb->expects(self::exactly(2))
+        $lookupDb->expects(self::exactly(1))
             ->method('fetchRow')
             ->with(self::stringContains('FROM session_tokens'))
             ->willReturn($this->tokenRow(role: 'gm', sessionId: 7, tokenId: 99));
@@ -78,10 +81,7 @@ final class GmPlayerRevokeServiceTest extends TestCase
     public function testRevokeReturnsValidationErrorForNonEmptyBody(): void
     {
         $lookupDb = $this->createLookupDbMock();
-        $lookupDb->expects(self::once())
-            ->method('fetchRow')
-            ->with(self::stringContains('FROM session_tokens'))
-            ->willReturn($this->tokenRow(role: 'gm', sessionId: 7, tokenId: 99));
+        $lookupDb->expects(self::never())->method('fetchRow');
 
         $revokeDb = $this->createRevokeDbMock();
         $revokeDb->expects(self::never())->method('fetchRow');
@@ -297,11 +297,9 @@ final class GmPlayerRevokeServiceTest extends TestCase
                 return $callback($revokeDb);
             });
 
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-23T12:34:56.789Z', new DateTimeZone('UTC'));
-        };
+        $fixedTime = new DateTimeImmutable('2026-02-23T12:34:56.789Z', new DateTimeZone('UTC'));
 
-        $service = $this->createService($lookupDb, $revokeDb, $nowProvider);
+        $service = $this->createService($lookupDb, $revokeDb, $fixedTime);
         $response = $service->revoke('Bearer gm-token', '7', '31', []);
 
         self::assertSame(Response::STATUS_OK, $response->code());
@@ -341,15 +339,17 @@ final class GmPlayerRevokeServiceTest extends TestCase
     private function createService(
         SimplePdo $lookupDb,
         SimplePdo $revokeDb,
-        ?callable $nowProvider = null
+        ?DateTimeImmutable $fixedTime = null
     ): GmPlayerRevokeService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
+        $authorizer = new GmSessionAuthorizer($revokeDb, $authGuard, new RequestValidator());
+        $clock = $fixedTime !== null ? new FixedClock($fixedTime) : new FixedClock(new DateTimeImmutable('now', new DateTimeZone('UTC')));
 
         return new GmPlayerRevokeService(
             $revokeDb,
-            $authGuard,
+            $authorizer,
             new RequestValidator(),
-            $nowProvider
+            new DateTimeFormatter($clock)
         );
     }
 

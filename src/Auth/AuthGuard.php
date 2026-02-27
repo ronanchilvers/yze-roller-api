@@ -17,37 +17,12 @@ final class AuthGuard
      */
     public function requireJoinToken(?string $authorizationHeader): array|Response
     {
-        if ($authorizationHeader === null || trim($authorizationHeader) === '') {
-            return $this->error(
-                Response::ERROR_TOKEN_MISSING,
-                'Authorization token is missing.'
-            );
-        }
-
-        $token = BearerToken::parseAuthorizationHeader($authorizationHeader);
-        if ($token === null) {
-            return $this->error(
-                Response::ERROR_TOKEN_INVALID,
-                'Authorization token is invalid.'
-            );
-        }
-
-        $tokenRow = $this->tokenLookup->findJoinTokenByOpaqueToken($token);
-        if ($tokenRow === null) {
-            return $this->error(
-                Response::ERROR_TOKEN_INVALID,
-                'Authorization token is invalid.'
-            );
-        }
-
-        if (($tokenRow['is_revoked'] ?? false) === true) {
-            return $this->error(
-                Response::ERROR_JOIN_TOKEN_REVOKED,
-                'Join token has been revoked.'
-            );
-        }
-
-        return $tokenRow;
+        return $this->resolveToken(
+            $authorizationHeader,
+            fn(string $token) => $this->tokenLookup->findJoinTokenByOpaqueToken($token),
+            Response::ERROR_JOIN_TOKEN_REVOKED,
+            'Join token has been revoked.'
+        );
     }
 
     /**
@@ -55,37 +30,12 @@ final class AuthGuard
      */
     public function requireSessionToken(?string $authorizationHeader): array|Response
     {
-        if ($authorizationHeader === null || trim($authorizationHeader) === '') {
-            return $this->error(
-                Response::ERROR_TOKEN_MISSING,
-                'Authorization token is missing.'
-            );
-        }
-
-        $token = BearerToken::parseAuthorizationHeader($authorizationHeader);
-        if ($token === null) {
-            return $this->error(
-                Response::ERROR_TOKEN_INVALID,
-                'Authorization token is invalid.'
-            );
-        }
-
-        $tokenRow = $this->tokenLookup->findSessionTokenByOpaqueToken($token);
-        if ($tokenRow === null) {
-            return $this->error(
-                Response::ERROR_TOKEN_INVALID,
-                'Authorization token is invalid.'
-            );
-        }
-
-        if (($tokenRow['is_revoked'] ?? false) === true) {
-            return $this->error(
-                Response::ERROR_TOKEN_REVOKED,
-                'Authorization token has been revoked.'
-            );
-        }
-
-        return $tokenRow;
+        return $this->resolveToken(
+            $authorizationHeader,
+            fn(string $token) => $this->tokenLookup->findSessionTokenByOpaqueToken($token),
+            Response::ERROR_TOKEN_REVOKED,
+            'Authorization token has been revoked.'
+        );
     }
 
     public function requireGmRole(array $sessionTokenRow): ?Response
@@ -98,6 +48,46 @@ final class AuthGuard
             Response::ERROR_ROLE_FORBIDDEN,
             'GM role is required for this endpoint.'
         );
+    }
+
+    /**
+     * @param callable(string): ?array<string,mixed> $lookup
+     * @return array<string,mixed>|Response
+     */
+    private function resolveToken(
+        ?string $authorizationHeader,
+        callable $lookup,
+        string $revokedErrorCode,
+        string $revokedMessage
+    ): array|Response {
+        if ($authorizationHeader === null || trim($authorizationHeader) === '') {
+            return $this->error(
+                Response::ERROR_TOKEN_MISSING,
+                'Authorization token is missing.'
+            );
+        }
+
+        $token = BearerToken::parseAuthorizationHeader($authorizationHeader);
+        if ($token === null) {
+            return $this->error(
+                Response::ERROR_TOKEN_INVALID,
+                'Authorization token is invalid.'
+            );
+        }
+
+        $tokenRow = $lookup($token);
+        if ($tokenRow === null) {
+            return $this->error(
+                Response::ERROR_TOKEN_INVALID,
+                'Authorization token is invalid.'
+            );
+        }
+
+        if (($tokenRow['is_revoked'] ?? false) === true) {
+            return $this->error($revokedErrorCode, $revokedMessage);
+        }
+
+        return $tokenRow;
     }
 
     private function error(string $code, string $message): Response

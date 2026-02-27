@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace YZERoller\Api\Tests;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use flight\database\SimplePdo;
 use flight\util\Collection;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +12,9 @@ use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Security\JoinRateLimiter;
 use YZERoller\Api\Service\JoinService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\SystemClock;
+use YZERoller\Api\Tests\Fixture\FixedTokenGenerator;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class JoinServiceTest extends TestCase
@@ -126,7 +127,7 @@ final class JoinServiceTest extends TestCase
             ->with(self::stringContains('join:22:'))
             ->willReturn(false);
 
-        $service = $this->createService($lookupDb, $joinDb, null, null, $rateLimiter);
+        $service = $this->createService($lookupDb, $joinDb, null, $rateLimiter);
 
         $response = $service->join('Bearer join-token', ['display_name' => 'Alice'], '127.0.0.1');
 
@@ -188,15 +189,7 @@ final class JoinServiceTest extends TestCase
                 return $callback($joinDb);
             });
 
-        $tokens = ['playerOpaqueToken789'];
-        $tokenGenerator = static function () use (&$tokens): string {
-            return array_shift($tokens);
-        };
-        $nowProvider = static function (): DateTimeImmutable {
-            return new DateTimeImmutable('2026-02-22T20:31:00.000Z', new DateTimeZone('UTC'));
-        };
-
-        $service = $this->createService($lookupDb, $joinDb, $tokenGenerator, $nowProvider);
+        $service = $this->createService($lookupDb, $joinDb, new FixedTokenGenerator('playerOpaqueToken789'));
 
         $response = $service->join('Bearer join-token', ['display_name' => 'Alice']);
 
@@ -267,8 +260,7 @@ final class JoinServiceTest extends TestCase
     private function createService(
         SimplePdo $lookupDb,
         SimplePdo $joinDb,
-        ?callable $tokenGenerator = null,
-        ?callable $nowProvider = null,
+        ?FixedTokenGenerator $tokenGenerator = null,
         ?JoinRateLimiter $rateLimiter = null
     ): JoinService {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
@@ -278,8 +270,8 @@ final class JoinServiceTest extends TestCase
             $authGuard,
             new RequestValidator(),
             $rateLimiter ?? $this->createAllowingJoinRateLimiter(),
-            $tokenGenerator,
-            $nowProvider
+            $tokenGenerator ?? new FixedTokenGenerator('dummy-token'),
+            new DateTimeFormatter(new SystemClock())
         );
     }
 

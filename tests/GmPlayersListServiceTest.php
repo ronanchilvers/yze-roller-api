@@ -8,9 +8,12 @@ use flight\database\SimplePdo;
 use flight\util\Collection;
 use PHPUnit\Framework\TestCase;
 use YZERoller\Api\Auth\AuthGuard;
+use YZERoller\Api\Auth\GmSessionAuthorizer;
 use YZERoller\Api\Auth\TokenLookup;
 use YZERoller\Api\Response;
 use YZERoller\Api\Service\GmPlayersListService;
+use YZERoller\Api\Support\DateTimeFormatter;
+use YZERoller\Api\Support\SystemClock;
 use YZERoller\Api\Validation\RequestValidator;
 
 final class GmPlayersListServiceTest extends TestCase
@@ -206,11 +209,12 @@ final class GmPlayersListServiceTest extends TestCase
     private function createService(SimplePdo $lookupDb, SimplePdo $playersDb): GmPlayersListService
     {
         $authGuard = new AuthGuard(new TokenLookup($lookupDb));
+        $authorizer = new GmSessionAuthorizer($playersDb, $authGuard, new RequestValidator());
 
         return new GmPlayersListService(
             $playersDb,
-            $authGuard,
-            new RequestValidator()
+            $authorizer,
+            new DateTimeFormatter(new SystemClock())
         );
     }
 
